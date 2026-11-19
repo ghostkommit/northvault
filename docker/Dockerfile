@@ -82,3 +82,12 @@ RUN CARGO_NET_OFFLINE=false cargo install cargo-llvm-cov --version 0.9.1 --locke
 COPY docker/run-coverage.sh docker/check-rust-coverage.py docker/test_coverage.py /opt/northvault/
 RUN python3 -B -m unittest discover -s /opt/northvault -p 'test_coverage.py'
 CMD ["sh", "/opt/northvault/run-coverage.sh"]
+
+FROM tests AS hardware-tests
+USER root
+# hidapi's hidraw backend links libudev; the default image builds without USB support.
+RUN apt-get update && apt-get install -y --no-install-recommends libudev-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+USER tester
+RUN cd /workspace/core && CARGO_NET_OFFLINE=false cargo test --locked --features emulator --test emulator_hardware --no-run
+CMD ["sh", "-c", "cd /workspace/core && cargo test --locked --offline --features emulator --test emulator_hardware -- --ignored --test-threads=1"]

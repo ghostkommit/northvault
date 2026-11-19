@@ -80,3 +80,55 @@ pub fn qr_roundtrip(service: &WalletService, psbt: String) -> String {
     assert_eq!(service.psbt_to_file(decoded.clone()).unwrap(), service.psbt_to_file(psbt).unwrap());
     decoded
 }
+
+/// The disposable Bitcoin Core fixture behind the live Regtest suites.
+pub struct Node {
+    cli: String,
+    directory: std::path::PathBuf,
+    port: u16,
+}
+
+impl Node {
+    pub fn from_env() -> Self {
+        let var = |name| std::env::var(name).expect("use make regtest-test");
+        let node = Self {
+            cli: var("NORTHVAULT_TEST_BITCOIN_CLI"),
+            directory: var("NORTHVAULT_TEST_NODE_DIR").into(),
+            port: var("NORTHVAULT_TEST_RPC_PORT").parse().unwrap(),
+        };
+        assert_eq!(std::fs::read_to_string(node.directory.join("northvault-test-only")).unwrap(), "disposable regtest\n");
+        assert_eq!(node.rpc(&["getblockchaininfo"])["chain"], "regtest");
+        node
+    }
+
+    pub fn rpc(&self, args: &[&str]) -> serde_json::Value {
+        let output = std::process::Command::new(&self.cli)
+            .arg(format!("-datadir={}", self.directory.display()))
+            .arg("-regtest")
+            .arg("-rpcconnect=127.0.0.1")
+            .arg(format!("-rpcport={}", self.port))
+            .arg("-rpcclienttimeout=15")
+            .arg("-rpcwallet=northvault-integration-miner")
+            .args(args)
+            .output()
+            .expect("run bitcoin-cli");
+        assert!(output.status.success(), "Bitcoin Core fixture RPC failed");
+        serde_json::from_slice(&output.stdout).unwrap_or_else(|_| serde_json::Value::String(String::from_utf8(output.stdout).unwrap().trim().into()))
+    }
+
+    pub fn mine(&self) {
+        let address = self.rpc(&["getnewaddress"]);
+        self.rpc(&["generatetoaddress", "1", address.as_str().unwrap()]);
+    }
+}
+
+pub async fn wait_balance(service: &WalletService, id: &str, expected: u64) {
+    for _ in 0..60 {
+        service.sync(Some(id.into())).await.expect("Regtest Electrum sync");
+        if service.accounts().iter().find(|a| a.id == id).unwrap().balance_sats == expected {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+    panic!("Regtest balance did not converge");
+}

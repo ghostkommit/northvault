@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 mod support;
 
 use bdk_wallet::{bitcoin::Network as BitcoinNetwork, KeychainKind, Wallet};

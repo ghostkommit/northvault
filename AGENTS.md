@@ -208,6 +208,7 @@ not a root Cargo workspace. Run checks appropriate to the change from the repo r
 | Change | Check |
 | --- | --- |
 | Rust wallet logic | `make test` |
+| Trezor transport or signing (`core/src/hwi/trezor.rs`) | `make docker-test-hardware` (firmware emulator; not device acceptance) |
 | Descriptor validation | `(cd descriptor-core && cargo test --locked)` |
 | Shared crypto/storage/descriptor bridge | `make storage-test` |
 | Full macOS app or Swift/Rust interface | `make build` |

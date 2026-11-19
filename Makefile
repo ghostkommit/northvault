@@ -53,6 +53,10 @@ docker-up: ## Start the disposable node and indexer, waiting for readiness
 docker-down: ## Stop Regtest services, retaining disposable chain/index volumes
 	docker compose down
 
+.PHONY: docker-test-hardware
+docker-test-hardware: ## Hardware-wallet code against vendor firmware emulators on Regtest
+	docker compose run --build --rm hardware-tests
+
 .PHONY: coverage-rust coverage-rust-check
 coverage-rust: ## Measure portable Rust plus live Regtest coverage inside Docker
 	docker compose run --build --rm coverage

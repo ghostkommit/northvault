@@ -95,6 +95,47 @@ services:
       - bitcoin-data:/data/bitcoin:ro
       - ./build/coverage-rust:/reports
 
+  # Trezor's own firmware emulator (Model T), headless. Test seed only; never a signer for funds.
+  trezor:
+    image: ghcr.io/trezor/trezor-user-env@sha256:7c9a57b23803fe6a9d7c8b20f2adcd125734745cdafd88dc2a311a4d012cf8c0
+    profiles: [hardware]
+    init: true
+    network_mode: service:bitcoin
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ["/tmp:mode=1777"]
+    # The image marks the binary executable for root only; root here holds no capabilities.
+    environment:
+      SDL_VIDEODRIVER: dummy
+      TREZOR_PROFILE_DIR: /tmp
+    # The binary name carries an architecture suffix.
+    entrypoint: [sh, -c, "exec /trezor-user-env/src/binaries/firmware/bin/trezor-emu-core-T2T1-v2.13.1*"]
+    healthcheck:
+      # Only look for the bound port: the emulator replies to whoever sent the last
+      # datagram, so a UDP ping from here would steal replies meant for the test.
+      test: [CMD, grep, -q, ":534C ", /proc/net/udp]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  hardware-tests:
+    <<: *test-runner
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: hardware-tests
+    profiles: [hardware]
+    depends_on:
+      bitcoin:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+      electrs:
+        condition: service_healthy
+      trezor:
+        condition: service_healthy
+
 networks:
   regtest:
     internal: true

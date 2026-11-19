@@ -9,6 +9,31 @@ models/crypto/storage/UI, macOS views and state, and the iOS storage client.
 Generated bindings and vendored dependencies are reported separately from
 first-party code; hardware and OS service acceptance remains explicit.
 
+## Hardware emulator suite (2026-11-19)
+
+`make docker-test-hardware` runs `core/tests/emulator_hardware.rs`: the unmodified
+`WalletService` device calls (`list_devices`, `device_keystore`,
+`device_verify_address`, `device_sign`, `broadcast`) against Trezor's own Model T
+firmware emulator (2.13.1) on Regtest. The emulator is loaded with Trezor's public
+`all all …` test seed and its prompts are answered over the debug link.
+
+| Covered | Result |
+| --- | --- |
+| Single-sig P2PKH, P2SH-P2WPKH, P2WPKH, P2TR | Key read, receive and change address match, signed, accepted by Bitcoin Core |
+| 2-of-3 P2SH-P2WSH and P2WSH with two synthetic cosigners | Same, plus one signature alone is refused |
+| Signing declined on the device | `WalletError::Device`, no PSBT returned |
+| Wallet without the device's key | Address display and signing refused |
+| 2-of-3 legacy P2SH at `m/45'` | **Refused by the firmware ("Forbidden key path")** under its default strict safety checks. Pinned in the test as a known limitation. |
+
+The Cargo feature `emulator` is the only production switch: without it
+`hwi/trezor.rs` hides the emulator's UDP transport. `make lint` fails if the
+feature appears in an app or release build script.
+
+Not covered: Coldcard and Jade (no emulator wired yet), Trezor Model One PIN
+matrix and host passphrase entry, and everything an emulator cannot show: USB
+and the macOS HID worker thread, real screens and buttons. `hwi/` is not yet in
+the coverage report. An emulator pass is not physical-device acceptance.
+
 ## Critical-file gate and CI (2026-11-18)
 
 Besides the 80% totals, `make coverage-rust-check` now fails unless integration
@@ -108,6 +133,7 @@ types, including 2-of-3 multisig, on Regtest.
 | `cd descriptor-core && cargo test --locked` | Regtest descriptor validation through the allocated JSON C ABI |
 | `make regtest-test` | Fresh Bitcoin Core + electrs, funding, PSBT signing/QR exchange, broadcast, confirmation and reopened persistence |
 | `docker compose run --build --rm tests` | Containerized portable Rust suites plus live Regtest workflow; only Docker/Compose required on host |
+| `make docker-test-hardware` | Production Trezor transport and signing against Trezor's firmware emulator (Model T) on Regtest; needs Docker and the pinned `trezor-user-env` image |
 | `make coverage-rust` / `make coverage-rust-check` | Containerized LLVM measurement of portable Rust plus live Regtest; the latter requires 80% of measured lines and still lists absent sources |
 | `make storage-test` | CryptoKit + C ABI + encrypted file repository, vault model and native rendered privacy checks with synthetic secrets and substituted OS services |
 | `bash scripts/test-panels.sh` | Swift state/navigation, credential cancellation, policy, device-selection and QR presentation checks |

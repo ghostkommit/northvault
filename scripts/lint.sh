@@ -11,6 +11,12 @@ for crate in core descriptor-core; do
 done
 # The air-gapped build without USB support must stay warning-free too.
 (cd core && cargo clippy --locked --no-default-features --all-targets -- -D warnings)
+# The emulator feature is for tests only: lint it, and keep it out of anything that builds the app.
+(cd core && cargo clippy --locked --features emulator --all-targets -- -D warnings)
+if grep -n 'emulator' scripts/build*.sh scripts/dist.sh .github/workflows/release.yml; then
+  echo "the emulator feature must not reach an app or release build" >&2
+  exit 1
+fi
 
 optional() {
   if command -v "$1" >/dev/null; then

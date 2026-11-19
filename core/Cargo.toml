@@ -18,6 +18,8 @@ path = "src/bin/uniffi-bindgen.rs"
 default = ["hardware"]
 # USB hardware wallets (Coldcard, Jade, Trezor). Off = air-gapped only.
 hardware = ["dep:async-hwi", "dep:trezor-client", "dep:protobuf", "dep:rusb"]
+# Test builds only: lets the Trezor transport see a local firmware emulator. Never in a release.
+emulator = ["hardware"]
 
 [dependencies]
 northvault-descriptor = { path = "../descriptor-core" }

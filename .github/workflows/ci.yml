@@ -58,6 +58,15 @@ jobs:
           path: build/coverage-rust
           if-no-files-found: ignore
 
+  hardware-emulators:
+    name: Hardware emulators
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Trezor transport and signing against the firmware emulator on Regtest
+        run: make docker-test-hardware
+
   macos-app:
     name: macOS app and Swift suites
     runs-on: macos-latest

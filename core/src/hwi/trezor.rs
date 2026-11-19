@@ -39,7 +39,9 @@ fn btc_network(network: Network) -> bdk_wallet::bitcoin::Network {
 fn devices() -> Vec<trezor_client::AvailableDevice> {
     trezor_client::find_devices(false)
         .into_iter()
-        .filter(|d| !d.debug && d.model != trezor_client::Model::TrezorBootloader && d.model != trezor_client::Model::TrezorEmulator)
+        .filter(|d| !d.debug && d.model != trezor_client::Model::TrezorBootloader)
+        // A local UDP emulator is not a signer; only the test-only `emulator` feature admits it.
+        .filter(|d| cfg!(feature = "emulator") || d.model != trezor_client::Model::TrezorEmulator)
         .collect()
 }
 

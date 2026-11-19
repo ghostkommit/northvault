@@ -54,6 +54,10 @@ explicitly ignored pending the Bitcoin Core/electrs prerequisites. Checks includ
 
 Not covered by automated tests: real device communication (Coldcard, Jade and Trezor
 were not available while this was written) and Electrum sync against a live server.
+The Trezor protocol code runs against Trezor's firmware emulator in
+`make docker-test-hardware` (see TESTING.md). That needs the test-only Cargo
+feature `emulator`, which must never be enabled in an app or release build: it
+lets `hwi/trezor.rs` list a local UDP emulator as a device.
 See "Verification" in DEVELOPMENT.md.
 
 The persistence failure tests in `core/tests/regtest_persistence.rs` exercise the

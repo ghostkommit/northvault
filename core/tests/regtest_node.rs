@@ -2,7 +2,7 @@
 //! `docker compose run --build --rm tests`, using isolated Regtest services.
 mod support;
 
-use std::{env, path::PathBuf, process::Command, time::Duration};
+use std::{env, time::Duration};
 
 use bdk_electrum::electrum_client::{Client, ElectrumApi};
 use bdk_wallet::bitcoin::{
@@ -11,57 +11,11 @@ use bdk_wallet::bitcoin::{
     Network as BitcoinNetwork,
 };
 use northvault_core::{Chain, LabelKind, Network, OutPoint, TimeRange, WalletError, WalletService};
-use serde_json::Value;
-
-struct Node {
-    cli: String,
-    directory: PathBuf,
-    port: u16,
-}
-
-impl Node {
-    fn rpc(&self, args: &[&str]) -> Value {
-        let output = Command::new(&self.cli)
-            .arg(format!("-datadir={}", self.directory.display()))
-            .arg("-regtest")
-            .arg("-rpcconnect=127.0.0.1")
-            .arg(format!("-rpcport={}", self.port))
-            .arg("-rpcclienttimeout=15")
-            .arg("-rpcwallet=northvault-integration-miner")
-            .args(args)
-            .output()
-            .expect("run bitcoin-cli");
-        assert!(output.status.success(), "Bitcoin Core fixture RPC failed");
-        serde_json::from_slice(&output.stdout).unwrap_or_else(|_| Value::String(String::from_utf8(output.stdout).unwrap().trim().into()))
-    }
-
-    fn mine(&self) {
-        let address = self.rpc(&["getnewaddress"]);
-        self.rpc(&["generatetoaddress", "1", address.as_str().unwrap()]);
-    }
-}
-
-async fn wait_balance(service: &WalletService, id: &str, expected: u64) {
-    for _ in 0..60 {
-        service.sync(Some(id.into())).await.expect("Regtest Electrum sync");
-        if service.accounts().iter().find(|a| a.id == id).unwrap().balance_sats == expected {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(250)).await;
-    }
-    panic!("Regtest balance did not converge");
-}
 
 #[tokio::test]
 #[ignore = "requires disposable Bitcoin Core + electrs; run make regtest-test"]
 async fn fund_sign_broadcast_confirm_and_reopen_every_script() {
-    let node = Node {
-        cli: env::var("NORTHVAULT_TEST_BITCOIN_CLI").expect("use make regtest-test"),
-        directory: env::var("NORTHVAULT_TEST_NODE_DIR").expect("use make regtest-test").into(),
-        port: env::var("NORTHVAULT_TEST_RPC_PORT").unwrap().parse().unwrap(),
-    };
-    assert_eq!(std::fs::read_to_string(node.directory.join("northvault-test-only")).unwrap(), "disposable regtest\n");
-    assert_eq!(node.rpc(&["getblockchaininfo"])["chain"], "regtest");
+    let node = support::Node::from_env();
     let port: u16 = env::var("NORTHVAULT_TEST_ELECTRUM_PORT").unwrap().parse().unwrap();
     let url = format!("tcp://127.0.0.1:{port}");
     let electrum = Client::new(&url).unwrap();
@@ -90,7 +44,7 @@ async fn fund_sign_broadcast_confirm_and_reopen_every_script() {
         let receive_address = receive.address.clone();
         node.rpc(&["sendtoaddress", &receive.address, "0.01000000"]);
         node.mine();
-        wait_balance(&service, &account.id, 1_000_000).await;
+        support::wait_balance(&service, &account.id, 1_000_000).await;
         let coins = service.utxos(Some(account.id.clone()));
         assert_eq!(coins.len(), 1);
         assert_eq!(coins[0].value_sats, 1_000_000);

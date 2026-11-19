@@ -12,6 +12,7 @@ import sys
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("report", type=Path)
+parser.add_argument("--lcov", type=Path, help="lcov export used for the executed-line gate")
 parser.add_argument("--require-full", action="store_true")
 parser.add_argument("--min-lines", type=int, choices=range(1, 101), metavar="1..100")
 args = parser.parse_args()
@@ -37,6 +38,21 @@ if missing:
 # The encrypted envelope (AES-GCM, HKDF, slot manifest) must stay fully covered.
 CRITICAL = [root / "shared/Sources/WalletCrypto/Envelope.swift"]
 partial = [p for p in CRITICAL if p not in included or included[p]["covered"] != included[p]["count"]]
+# The validation bridge and the encrypted repository must have every line executed.
+# (Their only unexecuted regions are `??` fallbacks for states the Rust ABI never returns.)
+EVERY_LINE = [root / "shared/Sources/WalletModels/Models.swift", root / "shared/Sources/WalletStorage/Repository.swift"]
+unexecuted, current = set(EVERY_LINE), None  # fail closed without an lcov export
+if args.lcov and args.lcov.exists():
+    unexecuted = set()
+    seen = set()
+    for line in args.lcov.read_text().splitlines():
+        if line.startswith("SF:"):
+            current = Path(line[3:]).resolve()
+            seen.add(current)
+        elif line.startswith("DA:") and line.endswith(",0"):
+            unexecuted.add(current)
+    unexecuted |= set(EVERY_LINE) - seen
+partial += [p for p in EVERY_LINE if p in unexecuted]
 for path in partial:
     print(f"Critical file below 100% line coverage: {path.relative_to(root)}")
 if (args.require_full or args.min_lines) and partial:

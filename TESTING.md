@@ -21,22 +21,24 @@ envelope (`WalletCrypto/Envelope.swift`). The lists live in
 
 | Scope | Result |
 | --- | --- |
-| Portable Rust, integration tests only | 1,918 / 1,945 measured lines (**98.61%**); 12 of 12 critical files fully covered |
-| Production Swift, four synthetic suites | 7,136 / 8,831 measured lines (**80.81%**); `Envelope.swift` 100% |
+| Portable Rust, integration tests only | 1,918 / 1,943 measured lines (**98.71%**); 12 of 12 critical files at 100% |
+| Production Swift, four synthetic suites | 7,136 / 8,831 measured lines (**80.81%**); `Envelope.swift` 100%, every line of `Models.swift` and `Repository.swift` executed |
 
-The Rust gate applies two measures to each critical file: llvm-cov's list of
-unexecuted lines must be empty, and the stricter JSON summary, which also counts
-a never-called closure that shares a line with executed code, must be 100%.
-Unreachable error-mapping closures in these files were replaced by shared helpers
-that reachable failures exercise. The one exception is the descriptor C ABI, held
-to executed lines only: its panic-containment handler and the error mapper on an
-infallible serialization cannot be called by any input, and they stay.
+The Rust gate applies two measures to each critical file, with no exceptions:
+llvm-cov's list of unexecuted lines must be empty, and the stricter JSON summary,
+which also counts a never-called closure that shares a line with executed code,
+must be 100%. Unreachable error-mapping closures in these files were replaced by
+shared helpers that reachable failures exercise.
+
+The Swift gate holds the encrypted envelope to the strict summary, and the
+descriptor-validation bridge (`Models.swift`) and encrypted repository
+(`Repository.swift`) to every line executed, from an lcov export. Their only
+unexecuted regions are three `??` fallbacks for states the Rust ABI never returns.
 
 Not in the 100% set: hardware transports and device calls in `lib.rs`, the sample
-backend, and Swift outside the envelope. `Repository.swift` and `Models.swift`
-have every line executed (three unreachable `??` fallbacks remain); the other
-Swift storage gaps are the real Keychain, device authentication, file
-coordination and iCloud discovery, which the suites substitute by design.
+backend, and the remaining Swift. The Swift storage gaps are the real Keychain,
+device authentication, file coordination and iCloud discovery, which the suites
+substitute by design; views and app state are measured only in the 80% total.
 
 `core/tests/regtest_interop.rs` adds six public-API workflows for the import
 boundaries: extended-key format/secrecy/network checks, unsupported wallet

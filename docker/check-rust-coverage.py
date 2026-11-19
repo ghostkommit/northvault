@@ -23,11 +23,6 @@ CRITICAL = [
     "descriptor-core/src/lib.rs",
 ]
 
-# Held to executed lines only: its panic-containment handler and the error
-# mapper on an infallible serialization are closures no input can call.
-LINE_ONLY = {"descriptor-core/src/lib.rs"}
-
-
 def summarize(directory, root, minimum=100, require_full=True):
     sources = set()
     for crate in ("core", "descriptor-core"):
@@ -69,7 +64,7 @@ def summarize(directory, root, minimum=100, require_full=True):
             unexecuted.add(Path(line.rpartition(": ")[0]))
     def complete(path):
         lines = measured.get(root / path)
-        return lines and (root / path) not in unexecuted and (path in LINE_ONLY or lines["covered"] == lines["count"])
+        return lines and (root / path) not in unexecuted and lines["covered"] == lines["count"]
 
     incomplete = [path for path in CRITICAL if (root / path) in sources and not complete(path)]
     print(f"Critical files not fully covered: {len(incomplete)} of {len(CRITICAL)}")

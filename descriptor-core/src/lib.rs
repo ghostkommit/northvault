@@ -101,7 +101,8 @@ fn canonical(d: &Desc) -> Result<String, String> {
     if sorted {
         keys.sort();
     }
-    serde_json::to_string(&(kind, m, sorted, keys)).map_err(|_| "Invalid descriptor".into())
+    // Strings and integers always serialize; a panic here is contained at the C boundary.
+    Ok(serde_json::to_string(&(kind, m, sorted, keys)).expect("canonical policy serializes"))
 }
 fn validate(r: Request) -> Result<Validated, String> {
     if r.receive.len() > 131072 || r.change.as_ref().is_some_and(|s| s.len() > 131072) {
@@ -174,7 +175,7 @@ pub unsafe extern "C" fn nv_descriptor_validate(input: *const c_char) -> *mut c_
             Err(e) => serde_json::json!({"error":e}),
         }
     })
-    .unwrap_or_else(|_| serde_json::json!({"error":"Validation failed"}));
+    .unwrap_or(serde_json::json!({"error":"Validation failed"}));
     CString::new(result.to_string()).unwrap().into_raw()
 }
 /// # Safety

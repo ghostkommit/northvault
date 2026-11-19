@@ -28,5 +28,7 @@ xcrun llvm-cov show "${OBJECTS[@]}" -instr-profile="$RUN/coverage.profdata" \
   -ignore-filename-regex="$IGNORE" -format=html -output-dir="$RUN/html"
 xcrun llvm-cov report "${OBJECTS[@]}" -instr-profile="$RUN/coverage.profdata" \
   -ignore-filename-regex="$IGNORE" > "$RUN/report.txt"
+xcrun llvm-cov export "${OBJECTS[@]}" -instr-profile="$RUN/coverage.profdata" \
+  -ignore-filename-regex="$IGNORE" -format=lcov > "$RUN/coverage.lcov"
 printf 'Swift coverage artifacts: %s\n' "$RUN"
-python3 scripts/check-swift-coverage.py "$RUN/summary.json" "$@"
+python3 scripts/check-swift-coverage.py "$RUN/summary.json" --lcov "$RUN/coverage.lcov" "$@"

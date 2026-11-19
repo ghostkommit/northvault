@@ -14,7 +14,7 @@ class SwiftCoverageGate(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="northvault-swift-coverage-") as directory:
             report = Path(directory) / "coverage.json"
 
-            def run(covered, *arguments, envelope=10):
+            def run(covered, *arguments, envelope=10, repository_hits=1, with_lcov=True):
                 files = [] if covered is None else [{
                     "filename": str(ROOT / "shared/Sources/WalletModels/Models.swift"),
                     "summary": {"lines": {"count": 5, "covered": covered}},
@@ -23,14 +23,22 @@ class SwiftCoverageGate(unittest.TestCase):
                     "summary": {"lines": {"count": 10, "covered": envelope}},
                 }]
                 report.write_text(json.dumps({"data": [{"files": files}]}))
+                lcov = Path(directory) / "coverage.lcov"
+                lcov.write_text("".join(f"SF:{ROOT / path}\nDA:1,1\nDA:2,{hits}\nend_of_record\n" for path, hits in [
+                    ("shared/Sources/WalletModels/Models.swift", 3),
+                    ("shared/Sources/WalletStorage/Repository.swift", repository_hits)]))
                 return subprocess.run([sys.executable, str(ROOT / "scripts/check-swift-coverage.py"),
-                                       str(report), *arguments], capture_output=True, text=True)
+                                       str(report), *(["--lcov", str(lcov)] if with_lcov else []), *arguments],
+                                      capture_output=True, text=True)
 
             passed = run(4, "--min-lines", "80")
             self.assertEqual(passed.returncode, 0)
             self.assertIn("93.33%", passed.stdout)
             # The encrypted envelope must be fully covered whatever the total is.
             self.assertNotEqual(run(5, "--min-lines", "80", envelope=9).returncode, 0)
+            # The repository must have every line executed, and the gate needs its line data.
+            self.assertNotEqual(run(5, "--min-lines", "80", repository_hits=0).returncode, 0)
+            self.assertNotEqual(run(5, "--min-lines", "80", with_lcov=False).returncode, 0)
             self.assertIn("ios/NorthvaultStorageApp.swift", passed.stdout)
             self.assertNotEqual(run(1, "--min-lines", "80").returncode, 0)
             self.assertNotEqual(run(None, "--min-lines", "80").returncode, 0)

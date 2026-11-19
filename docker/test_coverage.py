@@ -62,9 +62,6 @@ class CoverageReports(unittest.TestCase):
                 critical["data"][0]["files"][1]["summary"]["lines"]["covered"] = 10
                 (root / "core.json").write_text(json.dumps(critical))
                 self.assertTrue(coverage_check.summarize(root, root, 80, False))
-                # The descriptor ABI is held to executed lines only.
-                (root / "descriptor.json").write_text(json.dumps(report("descriptor-core", 9)))
-                self.assertTrue(coverage_check.summarize(root, root, 80, False))
                 (root / "core-missing.txt").write_text(f"TOTAL 99%\nUncovered Lines:\n{root}/core/src/lib.rs: 3\n{root}/core/src/wallet/tx.rs: 79, 141-142\n")
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):

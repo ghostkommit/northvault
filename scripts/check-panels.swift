@@ -216,7 +216,7 @@ struct PanelChecks {
         let actions: [(String, () -> Void)] = [
             ("Wallet details", { state.showWalletDetails(account) }),
             ("Export Labels (BIP329)", { state.showAccountExport(account, format: .labels) }),
-            ("Export Output descriptor (Sparrow)", { state.showAccountExport(account, format: .descriptor) }),
+            ("Export Output descriptor", { state.showAccountExport(account, format: .descriptor) }),
             ("Import labels (BIP329)", { state.showImportLabels(account) }),
             ("Rename account", { state.showRenameAccount(account) })
         ]

@@ -14,7 +14,7 @@ use crate::models::*;
 use crate::store::{Store, WalletRecord};
 use crate::wallet::descriptor;
 
-/// Addresses shown past the last used one, like Sparrow's gap limit.
+/// Addresses shown past the last used one (the gap limit).
 const ADDRESS_GAP: u32 = 20;
 const DAY_SECS: i64 = 86_400;
 
@@ -153,7 +153,7 @@ impl LiveAccount {
             .map(|u| {
                 let txid = u.outpoint.txid.to_string();
                 let address = self.address_string(&u.txout.script_pubkey);
-                // Sparrow-style label inheritance: output, then address, then transaction.
+                // Label inheritance: output, then address, then transaction.
                 let label = self
                     .labels
                     .get(LabelType::Output, &format!("{txid}:{}", u.outpoint.vout))

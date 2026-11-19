@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Add a watch-only account: single-sig or M-of-N, keys from a USB device,
-/// a file (Coldcard / Sparrow export) or a pasted xpub; or a whole wallet
-/// file (Sparrow descriptor, multisig setup file, BSMS).
+/// a file (device export) or a pasted xpub; or a whole wallet
+/// file (output descriptor, multisig setup file, BSMS).
 @MainActor
 struct AddWalletSheet: View {
     @Environment(AppState.self) private var state
@@ -141,14 +141,14 @@ struct AddWalletSheet: View {
             Picker("Script type", selection: $scriptType) {
                 ForEach(multisig ? ScriptType.multisig : ScriptType.singleSig, id: \.self) { Text($0.title).tag($0) }
             }
-            Text("Default path: \(state.wallet.defaultDerivationPath(scriptType: scriptType)) (same as Sparrow)")
+            Text("Default path: \(state.wallet.defaultDerivationPath(scriptType: scriptType))")
                 .font(.system(size: 12)).foregroundStyle(Theme.textMuted)
 
             Divider()
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Already set up in Sparrow or on a Coldcard?").fontWeight(.medium)
+                    Text("Already set up in another wallet or on a Coldcard?").fontWeight(.medium)
                     Text("Import an output descriptor, a multisig setup file or a BSMS record.")
                         .font(.system(size: 12)).foregroundStyle(Theme.textMuted)
                 }
@@ -214,7 +214,7 @@ struct AddWalletSheet: View {
                     Text("First receive addresses").font(.system(size: 12)).foregroundStyle(Theme.textMuted)
                     ForEach(lines.dropFirst(), id: \.self) { Text($0).font(Theme.mono(12)).textSelection(.enabled) }
                 }
-                Label("Check these match Sparrow or your device’s address explorer before you receive funds.", systemImage: "checkmark.shield")
+                Label("Check these match your other wallet or your device’s address explorer before you receive funds.", systemImage: "checkmark.shield")
                     .font(.system(size: 12)).foregroundStyle(Theme.warning)
             case .failure(let e):
                 Text(e.userMessage).foregroundStyle(Theme.negative)

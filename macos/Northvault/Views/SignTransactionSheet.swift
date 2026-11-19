@@ -119,7 +119,7 @@ struct SignTransactionSheet: View {
             }
             HStack(spacing: Theme.Space.s) {
                 Text("Air-gapped").font(.system(size: 12)).foregroundStyle(Theme.textMuted).frame(width: 70, alignment: .leading)
-                Button("Save PSBT…") { savePsbt() }.buttonStyle(.secondary).help("For Coldcard (SD card) or Sparrow")
+                Button("Save PSBT…") { savePsbt() }.buttonStyle(.secondary).help("For Coldcard (SD card) or another wallet")
                 Button("Show QR") {
                     if let parts = state.attempt({ try state.wallet.psbtToUrParts(psbt: draft.psbtBase64) }) {
                         QRCodePresentation.show(title: "Scan with your signing device", parts: parts)

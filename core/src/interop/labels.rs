@@ -1,4 +1,4 @@
-//! BIP329 wallet labels (JSON lines). Sparrow imports and exports this format.
+//! BIP329 wallet labels (JSON lines).
 
 use std::collections::BTreeMap;
 
@@ -87,7 +87,7 @@ mod tests {
         let mut back = Labels::default();
         assert_eq!(back.merge_jsonl(&text).unwrap(), 2);
         assert_eq!(back.get(LabelType::Addr, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu").as_deref(), Some("Donations"));
-        // Sparrow-style record with spendable flag and no label is accepted.
+        // A record with spendable flag and no label is accepted.
         assert_eq!(back.merge_jsonl(r#"{"type":"output","ref":"abc:0","spendable":false}"#).unwrap(), 0);
     }
 }

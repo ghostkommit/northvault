@@ -58,7 +58,7 @@ async fn fund_sign_broadcast_confirm_and_reopen_every_script() {
             assert_eq!(chart.last().unwrap().balance_sats, 1_000_000);
             assert!(chart.iter().all(|point| point.btc_price_usd > 0.0));
         }
-        // Exercise Sparrow-style inheritance on a real, indexed output.
+        // Exercise label inheritance on a real, indexed output.
         for (kind, reference, label) in [
             (LabelKind::Transaction, coins[0].txid.clone(), "Funding transaction"),
             (LabelKind::Address, receive.address.clone(), "Funding address"),

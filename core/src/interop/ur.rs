@@ -1,4 +1,4 @@
-//! BC-UR animated QR codes for PSBTs (`crypto-psbt`, read by Jade, Sparrow,
+//! BC-UR animated QR codes for PSBTs (`crypto-psbt`, read by Jade,
 //! Keystone, Passport, SeedSigner). The payload is a CBOR byte string.
 
 use std::sync::Mutex;

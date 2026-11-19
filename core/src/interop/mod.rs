@@ -2,10 +2,12 @@
 
 pub mod bsms;
 pub mod coldcard;
+pub mod descriptor_file;
 pub mod labels;
 pub mod psbt_io;
-pub mod sparrow;
 pub mod ur;
+
+use bdk_wallet::miniscript::descriptor::checksum::desc_checksum;
 
 use crate::models::*;
 use crate::wallet::descriptor::{self, fmt_path, parse_fingerprint, parse_path, parse_xpub};
@@ -19,12 +21,30 @@ pub fn import_wallet(contents: &[u8], filename: &str, network: Network) -> Resul
     } else if coldcard::looks_like_multisig_file(text) {
         coldcard::import_multisig(text, network)
     } else {
-        sparrow::import(text, name, network)
+        descriptor_file::import(text, name, network)
     }
 }
 
-/// Reads one keystore: Coldcard/Sparrow JSON export, or a key expression
-/// `[fingerprint/path]xpub` as shown by Sparrow and most devices.
+/// Jade and Keystone export a single-sig key as a descriptor, e.g. `wpkh([fp/path]xpub/0/*)#checksum`.
+/// Returns the text from the key expression on; a bare key expression passes through.
+fn descriptor_key(text: &str, script: ScriptType) -> Result<&str, WalletError> {
+    if !text.contains('(') {
+        return Ok(text);
+    }
+    if let Some((body, checksum)) = text.split_once('#') {
+        if desc_checksum(body).ok().as_deref() != Some(checksum.trim()) {
+            return Err(WalletError::interop("the descriptor checksum doesn't match"));
+        }
+    }
+    // The device chose the script when it exported; a different one here would derive other addresses.
+    text.strip_prefix(descriptor::wrapper(script).0)
+        .filter(|rest| rest.starts_with('['))
+        .ok_or_else(|| WalletError::interop("this export is for a different script type"))
+}
+
+/// Reads one keystore: Coldcard, Cobo Vault or Keystone JSON export, a Jade or
+/// Keystone single-sig descriptor, or a key expression `[fingerprint/path]xpub`
+/// as shown by Specter DIY and most devices.
 pub fn import_keystore(contents: &[u8], script: ScriptType, network: Network) -> Result<Keystore, WalletError> {
     let text = std::str::from_utf8(contents).map_err(|_| WalletError::interop("not a text file"))?.trim();
     if text.contains("prv") {
@@ -33,10 +53,10 @@ pub fn import_keystore(contents: &[u8], script: ScriptType, network: Network) ->
     if text.starts_with('{') {
         return coldcard::import_keystore(text, script, network);
     }
-    let rest = text.strip_prefix('[').ok_or_else(|| WalletError::interop("expected [fingerprint/path]xpub"))?;
+    let rest = descriptor_key(text, script)?.strip_prefix('[').ok_or_else(|| WalletError::interop("expected [fingerprint/path]xpub"))?;
     let (origin, key) = rest.split_once(']').ok_or_else(|| WalletError::interop("expected [fingerprint/path]xpub"))?;
     let (fp, path) = origin.split_once('/').unwrap_or((origin, ""));
-    let key = key.split('/').next().unwrap_or_default();
+    let key = key.split(['/', ')']).next().unwrap_or_default();
     let keystore = Keystore {
         label: "Keystore".into(),
         fingerprint: parse_fingerprint(fp)?.to_string(),

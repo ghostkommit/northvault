@@ -95,13 +95,13 @@ core/                              Rust
   src/lib.rs                       WalletService: the whole API the UI uses (sample or live backend)
   src/models.rs                    Types shared with Swift
   src/mock.rs                      Sample data for previews and design review
-  src/wallet/descriptor.rs  ⚠      Build/parse descriptors, Sparrow default paths, SLIP-132
+  src/wallet/descriptor.rs  ⚠      Build/parse descriptors, standard default paths, SLIP-132
   src/wallet/address.rs     ⚠      Recipient address parsing (checksum + network)
   src/wallet/live.rs               BDK wallet + SQLite per account → UI types
   src/wallet/tx.rs          ⚠      PSBT building, coin control, fee checks, combine, finalize
   src/chain/electrum.rs     ⚠      Sync, fee estimates, broadcast
   src/chain/price.rs               Price/FX source (sample only, see below)
-  src/interop/              ⚠      Sparrow descriptor, Coldcard files, BSMS, BIP329, PSBT files, BC-UR QR
+  src/interop/              ⚠      Output descriptors, Coldcard files, BSMS, BIP329, PSBT files, BC-UR QR
   src/hwi/                  ⚠      Coldcard, Jade, Trezor over USB
   src/store/                       wallets.json registry, per-wallet SQLite and labels
 macos/
@@ -187,23 +187,25 @@ import and final address review remain available.
 
 All colors and sizes come from `Theme.swift`. To change the look, edit tokens, not views.
 
-## Sparrow compatibility
+## Compatible formats
 
-Northvault reads and writes the interchange formats Sparrow uses. It doesn't read Sparrow's
-own `.mv.db` wallet files (an H2 Java database).
+Northvault reads and writes standard interchange formats, so wallets move to and from
+other descriptor wallets. It doesn't read another application's private wallet database.
 
 | Format | Import | Export | Code |
 |---|---|---|---|
-| Output descriptor (Sparrow File → Export → Output Descriptor; Bitcoin Core `/0/*` too) | ✓ | ✓ | `interop/sparrow.rs` |
-| Multisig setup file (Coldcard, also Sparrow / Jade / Keystone / Passport) | ✓ | ✓ | `interop/coldcard.rs` |
+| Output descriptor (BIP389 multipath; Bitcoin Core `/0/*` too) | ✓ | ✓ | `interop/descriptor_file.rs` |
+| Multisig setup file (Coldcard, also Jade / Keystone / Passport) | ✓ | ✓ | `interop/coldcard.rs` |
 | BSMS descriptor record (BIP129, unencrypted) | ✓ | ✓ | `interop/bsms.rs` |
-| Coldcard / Sparrow keystore JSON (`coldcard-export.json`, `ccxp-*.json`) | ✓ | – | `interop/coldcard.rs` |
+| Specter DIY wallet file (`addwallet name&descriptor`) | ✓ | ✓ | `interop/descriptor_file.rs` |
+| Coldcard keystore JSON (`coldcard-export.json`, `ccxp-*.json`), Cobo Vault / Keystone JSON | ✓ | – | `interop/coldcard.rs` |
+| Jade / Keystone single-sig descriptor (`wpkh([fingerprint/path]xpub/0/*)`) | ✓ | – | `interop/mod.rs` |
 | Key expression `[fingerprint/path]xpub` (any SLIP-132 form) | ✓ | – | `interop/mod.rs` |
 | Labels (BIP329) | ✓ | ✓ | `interop/labels.rs` |
 | PSBT file (binary or base64) | ✓ | ✓ (binary) | `interop/psbt_io.rs` |
 | Animated QR PSBT (BC-UR `crypto-psbt`) | ✓ (camera) | ✓ | `interop/ur.rs` |
 
-Defaults match Sparrow: BIP44/49/84/86 single-sig, BIP48 (`/1'` nested, `/2'` native) and BIP45
+Defaults follow the standards: BIP44/49/84/86 single-sig, BIP48 (`/1'` nested, `/2'` native) and BIP45
 multisig, `sortedmulti`, change on `/1/*`, gap limit 20, RBF on.
 
 ## Hardware wallets
@@ -314,7 +316,7 @@ fields are cleared after use/cancellation/timeout. As with PIN positions, transi
 memory copies cannot be guaranteed erased. A typo selects a different wallet; verify
 its fingerprint and receive addresses before using it. Never enter a recovery seed.
 
-The app isn't sandboxed (like Sparrow), because Jade needs direct serial-port access. It runs
+The app isn't sandboxed, because Jade needs direct serial-port access. It runs
 with the hardened runtime and the camera and USB entitlements (`Northvault.entitlements`).
 
 ## Replacing the remaining sample data
@@ -352,13 +354,13 @@ Not done yet:
 
 - `xcodebuild -create-xcframework` and running the app (needs Xcode).
 - Manual verification on signet or testnet4:
-  1. Create a 2-of-3 in Sparrow from a Coldcard, a Jade and a Trezor. Export the descriptor
+  1. Create a 2-of-3 in another descriptor wallet from a Coldcard, a Jade and a Trezor. Export the descriptor
      and import it here. The first 5 receive and change addresses must match.
-  2. Build a PSBT here and open it in Sparrow. Outputs and fee must be identical.
+  2. Build a PSBT here and open it in the other wallet. Outputs and fee must be identical.
   3. Sign on the Coldcard via SD card, the Jade via QR and the Trezor via USB, then broadcast.
-     Sparrow shows the transaction.
+     The other wallet shows the transaction.
   4. "Verify on device" shows the same address on each device.
-  5. Export BIP329 labels here and import them into Sparrow.
+  5. Export BIP329 labels here and import them into the other wallet.
 - The live Regtest suite passes in the Colima/arm64 Docker environment:
   `docker compose run --build --rm tests` provides the dependencies in containers;
   alternatively, `make regtest-test` uses locally installed Bitcoin Core and electrs.

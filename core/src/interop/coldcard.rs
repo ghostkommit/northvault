@@ -1,6 +1,6 @@
 //! SECURITY-SENSITIVE — requires human review before merge (key import).
 //!
-//! Coldcard file formats. The multisig setup file is also what Sparrow, Jade,
+//! Coldcard file formats. The multisig setup file is also what Jade,
 //! Keystone and Passport read and write.
 
 use serde_json::Value;
@@ -32,7 +32,7 @@ pub fn export_multisig(config: &WalletConfig, network: Network) -> Result<String
         format_name(config.script_type)?
     );
     for k in &keys {
-        // Per-key derivation lines: Coldcard, Sparrow and Jade all accept them.
+        // Per-key derivation lines: Coldcard and Jade both accept them.
         out += &format!("\nDerivation: {}\n{}: {}\n", fmt_path(&k.path), k.fingerprint.to_string().to_uppercase(), k.xpub);
     }
     Ok(out)
@@ -109,9 +109,23 @@ pub fn import_multisig(text: &str, network: Network) -> Result<WalletConfig, Wal
 
 /// Reads one keystore for `script` from a Coldcard export:
 /// generic wallet export (`coldcard-export.json`) or multisig xpub export (`ccxp-*.json`).
-/// Sparrow writes the same JSON shapes for its keystore exports.
 pub fn import_keystore(json: &str, script: ScriptType, network: Network) -> Result<Keystore, WalletError> {
     let v: Value = serde_json::from_str(json).map_err(|e| WalletError::interop(e.to_string()))?;
+    // Cobo Vault and Keystone single-sig export: one account key, its script implied by the path.
+    if let Some(xpub) = v.get("ExtPubKey").and_then(Value::as_str) {
+        let field = |name| v.get(name).and_then(Value::as_str).ok_or_else(|| WalletError::interop(format!("missing {name}")));
+        let path = parse_path(field("AccountKeyPath")?)?;
+        if path.into_iter().next() != parse_path(&descriptor::default_path(script, network))?.into_iter().next() {
+            return Err(WalletError::interop("this export has no key for the selected script type"));
+        }
+        return Ok(Keystore {
+            label: "Keystore".into(),
+            fingerprint: parse_fingerprint(field("MasterFingerprint")?)?.to_string(),
+            derivation_path: fmt_path(&path),
+            xpub: parse_xpub(xpub, network)?.to_string(),
+            device: None,
+        });
+    }
     let xfp = v.get("xfp").and_then(Value::as_str).ok_or_else(|| WalletError::interop("missing xfp"))?;
     let fingerprint = parse_fingerprint(xfp)?.to_string();
 

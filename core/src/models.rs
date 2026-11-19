@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Every script type Sparrow supports. Single-sig: P2pkh, P2shP2wpkh, P2wpkh, P2tr.
+/// Supported script types. Single-sig: P2pkh, P2shP2wpkh, P2wpkh, P2tr.
 /// Multisig: P2sh, P2shP2wsh, P2wsh.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, uniffi::Enum)]
 pub enum ScriptType {
@@ -227,12 +227,14 @@ pub struct SignatureStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
 pub enum ExportFormat {
-    /// Sparrow "Output Descriptor" text file.
+    /// Output descriptor text file.
     Descriptor,
-    /// Coldcard multisig setup file (also read by Sparrow, Jade, Keystone, Passport).
+    /// Coldcard multisig setup file (also read by Jade, Keystone, Passport).
     ColdcardMultisig,
     /// BIP129 descriptor record.
     Bsms,
+    /// Specter DIY `addwallet` line, for its SD card or QR import.
+    SpecterDiy,
     /// BIP329 labels (JSON lines).
     Labels,
 }

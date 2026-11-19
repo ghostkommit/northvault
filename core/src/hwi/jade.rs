@@ -2,7 +2,7 @@
 //!
 //! Blockstream Jade over USB serial, through async-hwi. Unlocking a Jade
 //! contacts Blockstream's PIN server over the network: that is how Jade's
-//! PIN protection works (Sparrow does the same).
+//! PIN protection works.
 
 use std::str::FromStr;
 

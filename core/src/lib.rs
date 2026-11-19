@@ -327,13 +327,13 @@ impl WalletService {
 
     // MARK: Wallet setup (SECURITY-SENSITIVE: descriptors and imported keys)
 
-    /// Sparrow's default account path for this script type on the current network.
+    /// The standard default account path for this script type on the current network.
     pub fn default_derivation_path(&self, script_type: ScriptType) -> String {
         descriptor::default_path(script_type, self.network_or_bitcoin())
     }
 
     /// Validates a setup and returns its descriptor plus the first receive
-    /// addresses, so they can be compared with Sparrow or a device before saving.
+    /// addresses, so they can be compared with another wallet or a device before saving.
     pub fn preview_wallet(&self, config: WalletConfig) -> Result<Vec<String>, WalletError> {
         let network = self.network_or_bitcoin();
         let desc = descriptor::build(&config, network)?;
@@ -374,13 +374,13 @@ impl WalletService {
         Ok(summary)
     }
 
-    /// Reads a wallet file (Sparrow descriptor, Coldcard/Jade multisig setup,
+    /// Reads a wallet file (output descriptor, Specter DIY, Coldcard/Jade multisig setup,
     /// BSMS). Returns the setup for review. Nothing is saved yet.
     pub fn import_wallet(&self, contents: Vec<u8>, filename: String) -> Result<WalletConfig, WalletError> {
         interop::import_wallet(&contents, &filename, self.network_or_bitcoin())
     }
 
-    /// Reads one keystore from a Coldcard/Sparrow export or `[fp/path]xpub` text.
+    /// Reads one keystore from a device export or `[fp/path]xpub` text.
     pub fn import_keystore(&self, contents: Vec<u8>, script_type: ScriptType) -> Result<Keystore, WalletError> {
         interop::import_keystore(&contents, script_type, self.network_or_bitcoin())
     }
@@ -394,9 +394,10 @@ impl WalletService {
         l.with_account(&account_id, |a| {
             let config = a.record.config();
             let text = match format {
-                ExportFormat::Descriptor => interop::sparrow::export(&config, l.network)?,
+                ExportFormat::Descriptor => interop::descriptor_file::export(&config, l.network)?,
                 ExportFormat::ColdcardMultisig => interop::coldcard::export_multisig(&config, l.network)?,
                 ExportFormat::Bsms => interop::bsms::export(&config, l.network)?,
+                ExportFormat::SpecterDiy => interop::descriptor_file::export_specter(&config, l.network)?,
                 ExportFormat::Labels => a.labels.to_jsonl(Some(a.record.descriptor.split('#').next().unwrap_or_default())),
             };
             Ok(text.into_bytes())
@@ -463,12 +464,12 @@ impl WalletService {
         Ok(psbt_io::to_base64(&psbt_io::decode(&contents)?))
     }
 
-    /// Binary PSBT for saving to an SD card (Coldcard, Sparrow).
+    /// Binary PSBT for saving to an SD card (Coldcard).
     pub fn psbt_to_file(&self, psbt: String) -> Result<Vec<u8>, WalletError> {
         Ok(psbt_io::from_base64(&psbt)?.serialize())
     }
 
-    /// Frames for an animated BC-UR QR code (Jade, Sparrow, Keystone, Passport).
+    /// Frames for an animated BC-UR QR code (Jade, Keystone, Passport).
     pub fn psbt_to_ur_parts(&self, psbt: String) -> Result<Vec<String>, WalletError> {
         interop::ur::psbt_to_parts(&psbt_io::from_base64(&psbt)?)
     }
@@ -521,7 +522,7 @@ impl WalletService {
         hwi::list(self.network_or_bitcoin()).await
     }
 
-    /// Reads the account xpub for `script_type` (Sparrow's default path) from a device.
+    /// Reads the account xpub for `script_type` (the standard default path) from a device.
     pub async fn device_keystore(&self, device_id: String, script_type: ScriptType) -> Result<Keystore, WalletError> {
         let network = self.network_or_bitcoin();
         hwi::keystore(&device_id, &descriptor::default_path(script_type, network), network).await

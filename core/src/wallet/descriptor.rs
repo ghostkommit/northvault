@@ -1,7 +1,7 @@
 //! SECURITY-SENSITIVE — requires human review before merge.
 //!
 //! Builds and parses the watch-only output descriptors behind every wallet.
-//! Defaults follow Sparrow: BIP44/49/84/86 single-sig, BIP48 (and BIP45 for
+//! Defaults follow the standards: BIP44/49/84/86 single-sig, BIP48 (and BIP45 for
 //! P2SH) multisig with `sortedmulti`, change on `/1/*`. Only public keys are
 //! ever accepted.
 
@@ -80,7 +80,7 @@ pub fn parse_path(s: &str) -> Result<DerivationPath, WalletError> {
     DerivationPath::from_str(&format!("m/{s}")).map_err(|_| WalletError::config(format!("invalid derivation path: {s}")))
 }
 
-/// `m/48'/0'/0'/2'` (Sparrow / Coldcard style).
+/// `m/48'/0'/0'/2'` (Coldcard style).
 pub fn fmt_path(path: &DerivationPath) -> String {
     let mut out = String::from("m");
     for c in path {
@@ -100,7 +100,7 @@ pub fn network_kind(network: Network) -> NetworkKind {
     }
 }
 
-/// Sparrow's default account path for a script type.
+/// The standard default account path for a script type.
 pub fn default_path(script: ScriptType, network: Network) -> String {
     let c = if network == Network::Bitcoin { 0 } else { 1 };
     match script {
@@ -140,7 +140,7 @@ const SCRIPTS: [ScriptType; 7] =
 
 /// Descriptor text around the key expression(s). The opening parts are
 /// mutually exclusive prefixes, so `parse` can recognize the script type by them.
-fn wrapper(script: ScriptType) -> (&'static str, &'static str) {
+pub(crate) fn wrapper(script: ScriptType) -> (&'static str, &'static str) {
     match script {
         ScriptType::P2pkh => ("pkh(", ")"),
         ScriptType::P2shP2wpkh => ("sh(wpkh(", "))"),

@@ -54,7 +54,7 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
         INFOPLIST_KEY_NSCameraUsageDescription: "Northvault uses the camera to scan signed transactions shown as QR codes by your hardware wallet."
         ENABLE_HARDENED_RUNTIME: YES
-        # Not sandboxed (like Sparrow): Jade needs direct serial port access.
+        # Not sandboxed: Jade needs direct serial port access.
         ENABLE_APP_SANDBOX: NO
         CODE_SIGN_ENTITLEMENTS: ../apple/StorageMac.entitlements
         DEAD_CODE_STRIPPING: YES

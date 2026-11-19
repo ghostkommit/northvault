@@ -15,7 +15,7 @@ use crate::models::*;
 
 pub type Client = BdkElectrumClient<electrum_client::Client>;
 
-/// Matches Sparrow's default gap limit.
+/// The conventional BIP44 gap limit.
 pub const STOP_GAP: usize = 20;
 pub const BATCH_SIZE: usize = 10;
 

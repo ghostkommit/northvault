@@ -1,4 +1,4 @@
-//! PSBT files: binary (Sparrow and Coldcard default) or base64 text.
+//! PSBT files: binary (Coldcard default) or base64 text.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use bdk_wallet::bitcoin::Psbt;

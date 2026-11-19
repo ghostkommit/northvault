@@ -18,7 +18,7 @@ CRITICAL = [
     "core/src/interop/coldcard.rs",
     "core/src/interop/labels.rs",
     "core/src/interop/psbt_io.rs",
-    "core/src/interop/sparrow.rs",
+    "core/src/interop/descriptor_file.rs",
     "core/src/interop/ur.rs",
     "descriptor-core/src/lib.rs",
 ]

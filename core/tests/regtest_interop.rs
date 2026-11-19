@@ -166,6 +166,58 @@ fn keystore_imports_accept_public_exports_and_reject_everything_else() {
     assert!(matches!(mainnet().import_keystore(generic.into_bytes(), ScriptType::P2wpkh), Err(WalletError::WrongNetwork)));
 }
 
+/// Air-gapped single-sig key exports as each device writes them. Keys are the
+/// public BIP39 "abandon … about" test vectors, never a real wallet.
+#[test]
+fn air_gapped_device_key_exports_import_for_their_own_script_only() {
+    const XPUB: &str = "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+    let service = mainnet();
+    let import = |text: &str, script| service.import_keystore(text.as_bytes().to_vec(), script);
+    let abandon = |keystore: Keystore| {
+        assert_eq!((keystore.fingerprint.as_str(), keystore.derivation_path.as_str(), keystore.xpub.as_str()), ("73c5da0a", "m/84'/0'/0'", XPUB));
+        assert_eq!(keystore.device, None);
+    };
+
+    // Jade: checksummed descriptor with an xpub.
+    let jade = format!("wpkh([73c5da0a/84'/0'/0']{XPUB}/0/*)#wc3n3van\n");
+    abandon(import(&jade, ScriptType::P2wpkh).unwrap());
+    for other in [ScriptType::P2tr, ScriptType::P2shP2wpkh, ScriptType::P2pkh, ScriptType::P2wsh] {
+        interop(import(&jade, other), "different script type");
+    }
+    interop(import(&jade.replace("#wc3n3van", "#wc3n3vaq"), ScriptType::P2wpkh), "checksum doesn't match");
+    interop(import(&jade.replace("73c5da0a", "73c5da0b"), ScriptType::P2wpkh), "checksum doesn't match");
+
+    // Keystone: no checksum, upper-case fingerprint, SLIP-132 key, change branch.
+    let keystone = format!("wpkh([73C5DA0A/84'/0'/0']{ZPUB}/1/*)");
+    abandon(import(&keystone, ScriptType::P2wpkh).unwrap());
+    abandon(import(&keystone.replace("/1/*", ""), ScriptType::P2wpkh).unwrap());
+    interop(import(&keystone, ScriptType::P2shP2wpkh), "different script type");
+    interop(import(&keystone.replace("wpkh(", "sh(wpkh(").replace("*)", "*))"), ScriptType::P2wpkh), "different script type");
+    interop(import(&format!("wpkh({ZPUB}/0/*)"), ScriptType::P2wpkh), "different script type");
+
+    // Cobo Vault and Keystone JSON.
+    let cobo =
+        format!(r#"{{"ExtPubKey": "{ZPUB}", "MasterFingerprint": "73C5DA0A", "AccountKeyPath": "84'/0'/0'", "CoboVaultFirmwareVersion": "1.7.1(BTC-Only)"}}"#);
+    abandon(import(&cobo, ScriptType::P2wpkh).unwrap());
+    for other in [ScriptType::P2shP2wpkh, ScriptType::P2tr, ScriptType::P2wsh] {
+        interop(import(&cobo, other), "no key for the selected script type");
+    }
+    interop(import(&cobo.replace("MasterFingerprint", "Fingerprint"), ScriptType::P2wpkh), "missing MasterFingerprint");
+    interop(import(&cobo.replace("AccountKeyPath", "Path"), ScriptType::P2wpkh), "missing AccountKeyPath");
+    assert!(matches!(import(&cobo.replace(ZPUB, XPRV), ScriptType::P2wpkh), Err(WalletError::PrivateKeyNotAllowed)));
+
+    // Specter DIY: bare key expression with `h` markers and a testnet SLIP-132 key.
+    let (_dir, regtest) = regtest();
+    let specter = "[b317ec86/84h/1h/0h]vpub5YHLPnkkpPW1ecL7Di7Gv2wDHDtBNqRdt17gMULpxJ27ZA1MmW7xbZjdg1S7d5JKaJ8CiZEmRUHrEB6CGuLomA6ioVa1Pcke6fEb5CzDBU1";
+    let imported = regtest.import_keystore(specter.as_bytes().to_vec(), ScriptType::P2wpkh).unwrap();
+    assert_eq!((imported.fingerprint.as_str(), imported.derivation_path.as_str()), ("b317ec86", "m/84'/1'/0'"));
+    assert!(imported.xpub.starts_with("tpub"));
+    assert!(matches!(import(specter, ScriptType::P2wpkh), Err(WalletError::WrongNetwork)));
+    for device_export in [jade, keystone, cobo] {
+        assert!(matches!(regtest.import_keystore(device_export.into_bytes(), ScriptType::P2wpkh), Err(WalletError::WrongNetwork)));
+    }
+}
+
 #[test]
 fn descriptor_imports_must_reproduce_the_same_addresses() {
     let (_dir, service) = regtest();
@@ -259,6 +311,33 @@ fn multisig_setup_files_and_bsms_records_are_checked_field_by_field() {
 
     let single = service.create_wallet(config(ScriptType::P2wpkh)).unwrap();
     assert!(matches!(service.export_wallet(single.id, ExportFormat::ColdcardMultisig), Err(WalletError::NotSupported { .. })));
+}
+
+#[test]
+fn specter_diy_wallet_lines_export_and_import_the_same_wallet() {
+    // A device-written line: `h` markers and keys without a branch suffix. Public sample keys.
+    const LINE: &str = "addwallet Vault 2 of 3&wsh(sortedmulti(2,[7fd1bbf4/48h/0h/0h/2h]xpub6DnVFCXjZKhSAJw1oGzksdc1CtMxHxqG6DgNSjZHsymMSgcNEb2c3bz5N2bBMEEUFos98CeAWbh1pTMBcJrsKW63icdAQNGT6Aqv1WWrkxg,[8ff26349/48h/0h/0h/2h]xpub6ErPooPdSeBoXVZocBe8EWF9GXjFuV52kme35p4MtrP2SAFdUmgTJM1urrJzSuA44izrEuiQNNdmWEVRaBJcBDcPpnLBR8tP2Pcu2EiyeHu,[ff3305c2/48h/0h/0h/2h]xpub6Dpndp2xurqbfSGhxKVXzk3nJZgah3PdD3qD11KyPicYYBatRxfxqoN7s9tnWKXaz7zhyVqcvnJyak7BVKonW2wTXHd1zNDxJAu8jcxF59j))\n";
+    let imported = mainnet().import_wallet(LINE.as_bytes().to_vec(), "file.txt".into()).unwrap();
+    assert_eq!((imported.name.as_str(), imported.script_type, imported.threshold), ("Vault 2 of 3", ScriptType::P2wsh, 2));
+    let origins: Vec<_> = imported.keystores.iter().map(|k| (k.fingerprint.as_str(), k.derivation_path.as_str())).collect();
+    assert_eq!(origins, [("7fd1bbf4", "m/48'/0'/0'/2'"), ("8ff26349", "m/48'/0'/0'/2'"), ("ff3305c2", "m/48'/0'/0'/2'")]);
+
+    let (_dir, service) = regtest();
+    let import = |text: &str| service.import_wallet(text.as_bytes().to_vec(), "file.txt".into());
+    assert!(matches!(import(LINE), Err(WalletError::WrongNetwork)));
+    interop(import(&LINE.replace("&wsh(sortedmulti(", "&wsh(multi(")), "");
+    interop(import("addwallet no descriptor"), "not a descriptor");
+    for script in support::SCRIPTS {
+        let mut named = config(script);
+        named.name = "Cold & warm".into();
+        let account = service.create_wallet(named.clone()).unwrap();
+        let line = String::from_utf8(service.export_wallet(account.id, ExportFormat::SpecterDiy).unwrap()).unwrap();
+        assert!(line.starts_with("addwallet Cold   warm&") && line.ends_with(")\n"), "the name must not contain the separator");
+        assert!(!line.contains(['\'', '*', '#']), "Specter DIY expects h markers and keys without branches");
+        let back = import(&line).unwrap();
+        assert_eq!(back.name, "Cold   warm");
+        assert_eq!(service.preview_wallet(back).unwrap(), service.preview_wallet(named).unwrap(), "{script:?}");
+    }
 }
 
 #[test]

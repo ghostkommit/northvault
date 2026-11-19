@@ -20,10 +20,10 @@ signs off should keep that true.
 
 | Area | File | What to check |
 |---|---|---|
-| Descriptors | `core/src/wallet/descriptor.rs` | Sparrow default paths, `sortedmulti` only, SLIP-132 → xpub mapping, xprv/tprv rejected, network check, path-depth check, imported descriptors rebuilt and compared address by address |
+| Descriptors | `core/src/wallet/descriptor.rs` | standard default paths, `sortedmulti` only, SLIP-132 → xpub mapping, xprv/tprv rejected, network check, path-depth check, imported descriptors rebuilt and compared address by address |
 | Recipient addresses | `core/src/wallet/address.rs` | Checksum and network enforced; BIP21 parsing ignores everything but the address |
 | Spending | `core/src/wallet/tx.rs` | Coin control uses only the selected outputs; fee rate limits (refuse > 1000 sat/vB, warn > 500 or ≥ 10% of amount); global xpubs on multisig PSBTs; signed PSBTs must have the draft's txid; finalize refuses with missing signatures |
-| Wallet / key import | `core/src/interop/{mod,coldcard,bsms,sparrow}.rs` | Setup files can't swap keys silently: key count must match Policy, BSMS first address is checked, every key is shown in the review step before saving |
+| Wallet / key import | `core/src/interop/{mod,coldcard,bsms,descriptor_file}.rs` | Setup files can't swap keys silently: key count must match Policy, BSMS first address is checked, every key is shown in the review step before saving |
 | Sync, fees, broadcast | `core/src/chain/electrum.rs`, `core/src/lib.rs` (async block) | Server URL is user-supplied only; fee estimates floored at relay fee; broadcast only after `finalize` |
 | Hardware devices | `core/src/hwi/*.rs` | Address display: the device's address is compared with ours (`AddressMismatch`); device PSBTs are txid-checked; Trezor input/output acks (multisig redeem info, change detection only on the change chain); passphrase entry uses the advertised on-device capability or a transient host form, with explicit standard-wallet selection |
 | UI | `macos/Northvault/Views/{SendView,SignTransactionSheet,ReceiveView}.swift` | What the user sees matches what is signed: outputs, change and fee shown before signing; broadcast needs confirmation; "Verify on device" result shown |
@@ -47,7 +47,7 @@ explicitly ignored pending the Bitcoin Core/electrs prerequisites. Checks includ
 
 - BIP84/BIP86/BIP49 spec vectors (`wallet::descriptor::tests`)
 - xprv and wrong-network rejection, path-depth check, SLIP-132 normalization
-- Coldcard setup file, BSMS (with tamper check), Sparrow descriptor and BIP329 round trips
+- Coldcard setup file, BSMS (with tamper check), output descriptor and BIP329 round trips
 - Coin control uses only the selected inputs; preview drafts don't burn change addresses
 - Fee rate refusal; 2-of-3 PSBT: one signature can't finalize, a mismatched PSBT is refused, two signatures finalize
 - Multisig key order matches the script, which Coldcard and Trezor depend on (`hwi::util::tests`)

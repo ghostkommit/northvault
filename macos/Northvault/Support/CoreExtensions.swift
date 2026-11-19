@@ -82,7 +82,7 @@ extension ScriptType {
         }
     }
 
-    /// Sparrow's names in the script type picker.
+    /// Names in the script type picker.
     var title: String {
         switch self {
         case .p2pkh: "Legacy (P2PKH)"
@@ -141,9 +141,10 @@ extension HardwareDevice: Identifiable {}
 extension ExportFormat {
     var title: String {
         switch self {
-        case .descriptor: "Output descriptor (Sparrow)"
-        case .coldcardMultisig: "Multisig setup file (Coldcard, Jade, Sparrow)"
+        case .descriptor: "Output descriptor"
+        case .coldcardMultisig: "Multisig setup file (Coldcard, Jade)"
         case .bsms: "BSMS descriptor record (BIP129)"
+        case .specterDiy: "Wallet file (Specter DIY)"
         case .labels: "Labels (BIP329)"
         }
     }
@@ -153,6 +154,7 @@ extension ExportFormat {
         case .descriptor: "descriptor.txt"
         case .coldcardMultisig: "multisig.txt"
         case .bsms: "wallet.bsms"
+        case .specterDiy: "specter-wallet.txt"
         case .labels: "labels.jsonl"
         }
     }

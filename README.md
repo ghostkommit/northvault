@@ -39,7 +39,7 @@
   the draft you reviewed before it can be broadcast.
 - **Coin control and fee safety.** Pick the exact coins to spend, send the maximum, and
   get warned about unusually high fees before anything is signed.
-- **Works with Sparrow.** Wallets move between the two apps using standard files, with
+- **Standard formats.** Wallets move to and from other descriptor wallets using standard files, with
   the same derivation defaults.
 - **Private by default.** No accounts, no telemetry, no third-party address lookups.
   The only server Northvault talks to is the Electrum server you choose.
@@ -102,10 +102,12 @@ Any signer that reads and writes PSBT files or `crypto-psbt` animated QR codes
 
 | Format | Import | Export |
 |---|:---:|:---:|
-| Output descriptor (Sparrow, Bitcoin Core) | ✓ | ✓ |
-| Multisig setup file (Coldcard, Sparrow, Jade, Keystone, Passport) | ✓ | ✓ |
+| Output descriptor (BIP389, Bitcoin Core) | ✓ | ✓ |
+| Multisig setup file (Coldcard, Jade, Keystone, Passport) | ✓ | ✓ |
 | BSMS descriptor record (BIP129) | ✓ | ✓ |
-| Coldcard / Sparrow keystore JSON | ✓ | – |
+| Specter DIY wallet file (`addwallet`) | ✓ | ✓ |
+| Coldcard, Cobo Vault or Keystone keystore JSON | ✓ | – |
+| Jade / Keystone single-sig key descriptor | ✓ | – |
 | Key expression `[fingerprint/path]xpub` | ✓ | – |
 | Labels (BIP329) | ✓ | ✓ |
 | PSBT file, binary or base64 | ✓ | ✓ |

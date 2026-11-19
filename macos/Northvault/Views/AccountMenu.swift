@@ -43,7 +43,7 @@ struct AccountMenu: View {
     }
 
     private var formats: [ExportFormat] {
-        account.isMultisig ? [.descriptor, .coldcardMultisig, .bsms, .labels] : [.descriptor, .labels]
+        account.isMultisig ? [.descriptor, .coldcardMultisig, .bsms, .specterDiy, .labels] : [.descriptor, .labels]
     }
 
 }
@@ -123,7 +123,7 @@ private struct RegisterWalletPanel: View {
     }
 }
 
-/// Keys and descriptor of an account, for checking against devices and Sparrow.
+/// Keys and descriptor of an account, for checking against devices and other wallets.
 struct WalletDetailsSheet: View {
     @Environment(AppState.self) private var state
     let account: Account

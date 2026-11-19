@@ -209,3 +209,19 @@ async fn portable_regtest_service_reports_unavailable_hardware_without_mutation(
     }
     assert_eq!(service.total_balance_sats(), 0);
 }
+
+#[test]
+fn trezor_credential_provider_can_be_registered_without_a_device() {
+    struct Cancelled;
+    impl northvault_core::TrezorPinProvider for Cancelled {
+        fn request_pin(&self) -> Option<String> {
+            None
+        }
+        fn request_passphrase(&self) -> Option<String> {
+            None
+        }
+    }
+    // Registration alone must not prompt, connect to hardware or change wallet state.
+    northvault_core::set_trezor_pin_provider(Box::new(Cancelled));
+    assert!(WalletService::new_sample().is_sample());
+}

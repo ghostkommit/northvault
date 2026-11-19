@@ -197,3 +197,23 @@ fn test_networks_with_identical_public_keys_have_isolated_persistence() {
         assert_eq!(service.addresses(shared_id.clone().unwrap(), Chain::Receive).unwrap()[0].label, Some(format!("Label {network:?}")));
     }
 }
+
+#[test]
+fn unreadable_registry_fails_closed_and_mainnet_storage_is_separate() {
+    let root = tempfile::tempdir().unwrap();
+    let account = open(root.path()).create_wallet(support::config(ScriptType::P2wpkh)).unwrap();
+    // Mainnet keeps its own directory and never sees test-network wallets.
+    let mainnet = WalletService::open(root.path().to_str().unwrap().into(), Network::Bitcoin, None).unwrap();
+    assert_eq!(mainnet.network(), Network::Bitcoin);
+    assert!(mainnet.accounts().is_empty());
+    assert!(root.path().join("bitcoin").is_dir());
+    // A registry that cannot be read is an error, not an empty wallet list.
+    let registry = root.path().join("regtest/wallets.json");
+    let saved = fs::read(&registry).unwrap();
+    fs::remove_file(&registry).unwrap();
+    fs::create_dir(&registry).unwrap();
+    assert!(matches!(WalletService::open(root.path().to_str().unwrap().into(), Network::Regtest, None), Err(WalletError::Backend { .. })));
+    fs::remove_dir(&registry).unwrap();
+    fs::write(&registry, saved).unwrap();
+    assert_eq!(open(root.path()).accounts()[0].id, account.id);
+}

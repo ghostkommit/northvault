@@ -98,6 +98,11 @@ func runStorageChecks(fixture: URL) async throws -> Int {
     try require(try await files.read(saved.url).digest == next.digest, "conflict preserves valid current file")
     do { _ = try await files.save(tampered,expected:next,dek:key); throw CheckFailure(message:"corrupt save accepted") } catch is VaultError {}
     try require(try await files.read(saved.url).digest == next.digest, "corrupt save preserves backup")
+    // The production NSFileCoordinator, against a temporary local directory (no iCloud).
+    let systemFiles = try EncryptedFileStore(directory: root.appendingPathComponent("system-coordinator"))
+    let systemSaved = try await systemFiles.save(e, dek: key)
+    try require(try await systemFiles.read(systemSaved.url).digest == systemSaved.digest, "system file coordination round trip")
+    try require(try await systemFiles.conflictCopies(systemSaved.url).isEmpty, "a local file has no unresolved cloud versions")
     let blank = MemoryKeychain()
     let freshRepository = WalletRepository(files: files, keychain: blank)
     let reused = try await freshRepository.create(name: "Repeated import", descriptors: d, authorizations: auths, secretMode: .local, cacheMode: nil)

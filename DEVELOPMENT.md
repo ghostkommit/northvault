@@ -204,6 +204,8 @@ other descriptor wallets. It doesn't read another application's private wallet d
 | Labels (BIP329) | ✓ | ✓ | `interop/labels.rs` |
 | PSBT file (binary or base64) | ✓ | ✓ (binary) | `interop/psbt_io.rs` |
 | Animated QR PSBT (BC-UR `crypto-psbt`) | ✓ (camera) | ✓ | `interop/ur.rs` |
+| Account key QR (BC-UR `crypto-account`, BCR-2020-015; or static `[fingerprint/path]xpub`) | ✓ (camera) | – | `interop/ur.rs` |
+| Wallet descriptor QR (BC-UR `crypto-output`, BCR-2020-010; keys at `/0/*`, readers add change) | – | ✓ | `interop/ur.rs` |
 
 Defaults follow the standards: BIP44/49/84/86 single-sig, BIP48 (`/1'` nested, `/2'` native) and BIP45
 multisig, `sortedmulti`, change on `/1/*`, gap limit 20, RBF on.
@@ -367,7 +369,9 @@ Not done yet:
   Consecutive runs on the same disposable chain pass with isolated test-only keys.
   Offline Regtest integration tests run with `make test`. See [TESTING.md](TESTING.md)
   for the reusable air-gapped signer, coverage reports, and outstanding gaps.
-- QR keystore import from Jade (`crypto-account`). Use USB or `[fingerprint/path]xpub` for now.
+- Account key QRs (`crypto-account`) and descriptor QRs (`crypto-output`) are tested against
+  SeedSigner's published vectors and the BCR field layout, not yet against a physical SeedSigner,
+  Keystone, Passport or Jade camera. Specter's legacy `p1of2 …` key QR and `crypto-hdkey` are not read.
 
 ## Security notes
 

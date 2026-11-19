@@ -377,7 +377,7 @@ fn psbt_files_and_qr_frames_round_trip_and_reject_foreign_payloads() {
 
     let decoder = UrDecoder::new();
     interop(decoder.receive("hello".into()), "not a PSBT");
-    interop(decoder.receive("UR:CRYPTO-ACCOUNT/AEAE".into()), "isn't a PSBT");
+    interop(decoder.receive("UR:CRYPTO-HDKEY/AEAE".into()), "isn't a PSBT");
     interop(decoder.receive("ur:crypto-psbt/not-bytewords".into()), "");
     interop(decoder.receive("ur:crypto-psbt/1-3/not-bytewords".into()), "");
     assert_eq!(decoder.result().unwrap(), None);
@@ -389,4 +389,290 @@ fn psbt_files_and_qr_frames_round_trip_and_reject_foreign_payloads() {
         decoder.receive(ur::encode(&payload, &ur::Type::Custom("crypto-psbt"))).unwrap();
         assert!(matches!(decoder.result(), Err(WalletError::Interop { .. })), "{payload:?}");
     }
+}
+
+/// SeedSigner's own published key QR vectors (its tests/test_encodepsbtqr.py) for one
+/// key, m/48h/1h/0h/2h of a public test mnemonic, never a wallet for funds.
+const SEEDSIGNER_STATIC: &str =
+    "[c49122a5/48h/1h/0h/2h]Vpub5mXgECaX5yYDNc5VnUG4jVNptyEg65qUjuofWchQeuMWWiq8rcPBoMxfrVggXj5NJmaNEToWpax8GMMucozvAdqf1bW1JsZsfdBzsK3VUC5";
+const SEEDSIGNER_MAINNET: [&str; 4] = [
+    "UR:CRYPTO-ACCOUNT/1-4/LPADAACSKPCYMOMNLGRYHDCKOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNSNIYMUECBY",
+    "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSKPCYMOMNLGRYHDCKKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYRSTDMOPSCXFZ",
+    "UR:CRYPTO-ACCOUNT/3-4/LPAXAACSKPCYMOMNLGRYHDCKSPZSBZSPGERLGDATUYNLPYBTGYIYYKBTWTAOSWKSVTSGCHBYDKYAVDAMTAADMONDGDFD",
+    "UR:CRYPTO-ACCOUNT/4-4/LPAAAACSKPCYMOMNLGRYHDCKDYOTADLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAXAAAYCYIOREKKJKAEAEAEWZWDMYON",
+];
+const SEEDSIGNER_TESTNET: [&str; 5] = [
+    "UR:CRYPTO-ACCOUNT/1-5/LPADAHCSKECYRTPEDKMOHDCFOEADCYSSMECPONAOLYTAADMETAADDLONAXHDCLAOKSRLNLKPUENSAHBTHS",
+    "UR:CRYPTO-ACCOUNT/2-5/LPAOAHCSKECYRTPEDKMOHDCFGYATHPMNSNKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTNDJSCF",
+    "UR:CRYPTO-ACCOUNT/3-5/LPAXAHCSKECYRTPEDKMOHDCFZTBEAAHDCXVDTPMYRSTDSPZSBZSPGERLGDATUYNLPYBTGYIYYKBDFGWPKE",
+    "UR:CRYPTO-ACCOUNT/4-5/LPAAAHCSKECYRTPEDKMOHDCFBTWTAOSWKSVTSGCHBYDKYAVDAHTAADEHOYAOADAMTAADDYOTADGYBKBWFE",
+    "UR:CRYPTO-ACCOUNT/5-5/LPAHAHCSKECYRTPEDKMOHDCFLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAXAAAYCYIOREKKJKAETODLFYWP",
+];
+
+fn scan(service: &WalletService, frames: &[&str], script: ScriptType) -> Result<Option<Keystore>, WalletError> {
+    let decoder = UrDecoder::new();
+    for frame in frames {
+        decoder.receive((*frame).into()).unwrap();
+    }
+    service.import_keystore_qr(decoder, script)
+}
+
+fn account_qr(cbor: Vec<u8>) -> String {
+    ur::encode(&cbor, &ur::Type::Custom("crypto-account"))
+}
+
+#[test]
+fn seedsigner_account_qrs_import_the_key_for_the_selected_script_only() {
+    let (_dir, regtest) = regtest();
+    let static_key = regtest.import_keystore(SEEDSIGNER_STATIC.as_bytes().to_vec(), ScriptType::P2wsh).unwrap();
+    assert_eq!((static_key.fingerprint.as_str(), static_key.derivation_path.as_str()), ("c49122a5", "m/48'/1'/0'/2'"));
+
+    // Two independent SeedSigner encodings of one key must agree: the animated
+    // crypto-account QR and the static text QR.
+    let scanned = scan(&regtest, &SEEDSIGNER_TESTNET, ScriptType::P2wsh).unwrap().unwrap();
+    assert_eq!(
+        (scanned.fingerprint.as_str(), scanned.derivation_path.as_str(), scanned.xpub.as_str()),
+        (static_key.fingerprint.as_str(), static_key.derivation_path.as_str(), static_key.xpub.as_str())
+    );
+    assert_eq!(scanned.device, None);
+    assert_eq!(scan(&regtest, &[SEEDSIGNER_STATIC], ScriptType::P2wsh).unwrap().unwrap().xpub, static_key.xpub);
+
+    // The mainnet export is the same key under the mainnet version bytes.
+    let mainnet = mainnet();
+    let main = scan(&mainnet, &SEEDSIGNER_MAINNET, ScriptType::P2wsh).unwrap().unwrap();
+    let (a, b) = (main.xpub.parse::<bdk_wallet::bitcoin::bip32::Xpub>().unwrap(), static_key.xpub.parse::<bdk_wallet::bitcoin::bip32::Xpub>().unwrap());
+    assert_eq!(
+        (a.public_key, a.chain_code, a.depth, a.child_number, a.parent_fingerprint),
+        (b.public_key, b.chain_code, b.depth, b.child_number, b.parent_fingerprint)
+    );
+    assert_eq!(main.fingerprint, "c49122a5");
+
+    // Network, script type and completeness are enforced.
+    assert!(matches!(scan(&mainnet, &SEEDSIGNER_TESTNET, ScriptType::P2wsh), Err(WalletError::WrongNetwork)));
+    assert!(matches!(scan(&regtest, &SEEDSIGNER_MAINNET, ScriptType::P2wsh), Err(WalletError::WrongNetwork)));
+    for other in [ScriptType::P2wpkh, ScriptType::P2shP2wsh, ScriptType::P2sh, ScriptType::P2tr] {
+        interop(scan(&regtest, &SEEDSIGNER_TESTNET, other), "no key for the selected script type");
+    }
+    assert_eq!(scan(&regtest, &SEEDSIGNER_TESTNET[..2], ScriptType::P2wsh).unwrap(), None);
+
+    // A PSBT scan and a key scan can't be mixed or confused.
+    let keys = UrDecoder::new();
+    keys.receive(SEEDSIGNER_TESTNET[0].into()).unwrap();
+    interop(keys.result(), "account key, not a PSBT");
+    interop(keys.receive("UR:CRYPTO-PSBT/1-2/LPADAOCSKECYRTPEDKMOHDCF".into()), "different QR code");
+    let psbt_scan = UrDecoder::new();
+    psbt_scan.receive(regtest.psbt_to_ur_parts(psbt(1).to_string()).unwrap()[0].clone()).unwrap();
+    interop(regtest.import_keystore_qr(psbt_scan, ScriptType::P2wsh), "PSBT, not an account key");
+    interop(UrDecoder::new().receive("UR:CRYPTO-OUTPUT/LPADAOCS".into()), "isn't a PSBT or an account key");
+    // A misread frame must not lock the scan to its type.
+    let misread = UrDecoder::new();
+    assert!(misread.receive("UR:CRYPTO-ACCOUNT/NOT-BYTEWORDS".into()).is_err());
+    assert_eq!(misread.result().unwrap(), None);
+    misread.receive(psbt(1).to_string()).unwrap();
+    assert!(misread.result().unwrap().is_some());
+}
+
+/// Writes a crypto-account map with one wpkh entry whose key map is built by `hdkey`.
+fn account_with(hdkey: impl FnOnce(&mut minicbor::Encoder<Vec<u8>>)) -> String {
+    let mut e = minicbor::Encoder::new(Vec::new());
+    e.map(3).unwrap().u32(1).unwrap().u32(0x73c5da0a).unwrap().u32(2).unwrap().array(1).unwrap();
+    e.tag(minicbor::data::Tag::new(404)).unwrap().tag(minicbor::data::Tag::new(303)).unwrap();
+    hdkey(&mut e);
+    // An unknown account field after the outputs is skipped.
+    e.u32(3).unwrap().str("extra").unwrap();
+    account_qr(e.into_writer())
+}
+
+#[test]
+fn malformed_account_qrs_fail_closed() {
+    let service = mainnet();
+    let scan_one = |qr: String| scan(&service, &[qr.as_str()], ScriptType::P2wpkh);
+    let origin = |e: &mut minicbor::Encoder<Vec<u8>>| {
+        e.u32(6).unwrap().tag(minicbor::data::Tag::new(304)).unwrap().map(2).unwrap().u32(1).unwrap().array(6).unwrap();
+        for index in [84, 0, 0] {
+            e.u32(index).unwrap().bool(true).unwrap();
+        }
+        e.u32(2).unwrap().u32(0x73c5da0a).unwrap();
+    };
+    let point = [2u8; 33];
+    // A private key is refused even when everything else is well formed.
+    let private = account_with(|e| {
+        e.map(4).unwrap().u32(2).unwrap().bytes(&[1; 32]).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+        origin(e);
+    });
+    assert!(matches!(scan_one(private), Err(WalletError::PrivateKeyNotAllowed)));
+    let master = account_with(|e| {
+        e.map(3).unwrap().u32(1).unwrap().bool(true).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+    });
+    interop(scan_one(master), "master key");
+    // Depth 3 without a parent fingerprint can't be turned into an xpub.
+    let orphan = account_with(|e| {
+        e.map(3).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+        origin(e);
+    });
+    interop(scan_one(orphan), "missing its parent fingerprint");
+    let no_origin = account_with(|e| {
+        e.map(2).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+    });
+    interop(scan_one(no_origin), "no derivation path");
+    let short_chain_code = account_with(|e| {
+        e.map(4).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 31]).unwrap();
+        origin(e);
+        e.u32(8).unwrap().u32(1).unwrap();
+    });
+    interop(scan_one(short_chain_code), "invalid chain code");
+    let bad_point = account_with(|e| {
+        e.map(4).unwrap().u32(3).unwrap().bytes(&[9; 33]).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+        origin(e);
+        e.u32(8).unwrap().u32(1).unwrap();
+    });
+    interop(scan_one(bad_point), "invalid public key");
+
+    // A depth-1 key without a parent fingerprint takes the master's; unknown
+    // coin-info, keypath and key fields are skipped.
+    let generator = bdk_wallet::bitcoin::secp256k1::PublicKey::from_secret_key(
+        &bdk_wallet::bitcoin::secp256k1::Secp256k1::new(),
+        &bdk_wallet::bitcoin::secp256k1::SecretKey::from_slice(&[1; 32]).unwrap(),
+    )
+    .serialize();
+    let shallow = |source: u32, depth: u8, coin_tag: u64| {
+        account_with(move |e| {
+            e.map(5).unwrap().u32(3).unwrap().bytes(&generator).unwrap().u32(4).unwrap().bytes(&[7; 32]).unwrap();
+            e.u32(5).unwrap().tag(minicbor::data::Tag::new(coin_tag)).unwrap().map(2).unwrap().u32(1).unwrap().u32(0).unwrap().u32(2).unwrap().u32(0).unwrap();
+            e.u32(6)
+                .unwrap()
+                .tag(minicbor::data::Tag::new(304))
+                .unwrap()
+                .map(4)
+                .unwrap()
+                .u32(1)
+                .unwrap()
+                .array(2)
+                .unwrap()
+                .u32(84)
+                .unwrap()
+                .bool(true)
+                .unwrap();
+            e.u32(2).unwrap().u32(source).unwrap().u32(3).unwrap().u8(depth).unwrap().u32(4).unwrap().str("unknown").unwrap();
+            e.u32(9).unwrap().str("name").unwrap();
+        })
+    };
+    let key = scan_one(shallow(0x73c5da0a, 1, 305)).unwrap().unwrap();
+    assert_eq!((key.fingerprint.as_str(), key.derivation_path.as_str()), ("73c5da0a", "m/84'"));
+    assert_eq!(key.xpub.parse::<bdk_wallet::bitcoin::bip32::Xpub>().unwrap().parent_fingerprint.to_string(), "73c5da0a");
+    interop(scan_one(shallow(0x0bad0bad, 1, 305)), "origin doesn't match the account fingerprint");
+    interop(scan_one(shallow(0x73c5da0a, 2, 305)), "depth doesn't match its derivation path");
+    interop(scan_one(shallow(0x73c5da0a, 1, 304)), "unexpected tag");
+    let path = |write: fn(&mut minicbor::Encoder<Vec<u8>>)| {
+        account_with(move |e| {
+            e.map(3).unwrap().u32(3).unwrap().bytes(&point).unwrap().u32(4).unwrap().bytes(&[0; 32]).unwrap();
+            e.u32(6).unwrap().tag(minicbor::data::Tag::new(304)).unwrap().map(1).unwrap().u32(1).unwrap();
+            write(e);
+        })
+    };
+    interop(
+        scan_one(path(|e| {
+            e.array(1).unwrap().u32(84).unwrap();
+        })),
+        "odd path",
+    );
+    interop(
+        scan_one(path(|e| {
+            e.array(2).unwrap().array(0).unwrap().bool(false).unwrap();
+        })),
+        "can't contain a wildcard",
+    );
+    interop(
+        scan_one(path(|e| {
+            e.array(2).unwrap().u32(0x8000_0000).unwrap().bool(true).unwrap();
+        })),
+        "invalid index",
+    );
+    // Truncated input and indefinite lengths are rejected, not read past.
+    let cbor = ur_payload(&SEEDSIGNER_MAINNET);
+    for cut in [1, cbor.len() / 2, cbor.len() - 1] {
+        interop(scan_one(account_qr(cbor[..cut].to_vec())), "unreadable account QR");
+    }
+    interop(scan_one(account_qr(vec![0xbf, 0xff])), "indefinite map");
+}
+
+/// Walks a crypto-output payload and checks each field against BCR-2020-010.
+#[test]
+fn descriptor_qrs_carry_every_key_with_its_origin_for_each_script() {
+    let (_dir, service) = regtest();
+    for script in SCRIPTS {
+        let account = service.create_wallet(config(script)).unwrap();
+        let parts = service.descriptor_to_ur_parts(account.id.clone()).unwrap();
+        assert!(parts.iter().all(|p| p.starts_with("UR:CRYPTO-OUTPUT/")));
+        let cbor = ur_payload(&parts);
+        let mut d = minicbor::Decoder::new(&cbor);
+        let mut tags = Vec::new();
+        while d.datatype().unwrap() == minicbor::data::Type::Tag {
+            tags.push(d.tag().unwrap().as_u64());
+        }
+        let expected: &[u64] = match script {
+            ScriptType::P2pkh => &[403, 303],
+            ScriptType::P2shP2wpkh => &[400, 404, 303],
+            ScriptType::P2wpkh => &[404, 303],
+            ScriptType::P2tr => &[409, 303],
+            ScriptType::P2sh => &[400, 407],
+            ScriptType::P2shP2wsh => &[400, 401, 407],
+            ScriptType::P2wsh => &[401, 407],
+        };
+        assert_eq!(tags, expected, "{script:?}");
+        let keystores = config(script).keystores;
+        if script.is_multisig() {
+            assert_eq!((d.map().unwrap(), d.u32().unwrap(), d.u32().unwrap(), d.u32().unwrap()), (Some(2), 1, 2, 2));
+            assert_eq!(d.array().unwrap(), Some(3));
+        }
+        for keystore in &keystores {
+            if script.is_multisig() {
+                assert_eq!(d.tag().unwrap().as_u64(), 303);
+            }
+            let xpub: bdk_wallet::bitcoin::bip32::Xpub = keystore.xpub.parse().unwrap();
+            assert_eq!(d.map().unwrap(), Some(6), "test networks add use_info");
+            assert_eq!((d.u32().unwrap(), d.bytes().unwrap()), (3, xpub.public_key.serialize().as_slice()));
+            assert_eq!((d.u32().unwrap(), d.bytes().unwrap()), (4, xpub.chain_code.as_bytes().as_slice()));
+            assert_eq!((d.u32().unwrap(), d.tag().unwrap().as_u64(), d.map().unwrap(), d.u32().unwrap(), d.u32().unwrap()), (5, 305, Some(1), 2, 1));
+            assert_eq!((d.u32().unwrap(), d.tag().unwrap().as_u64(), d.map().unwrap(), d.u32().unwrap()), (6, 304, Some(3), 1));
+            let path: bdk_wallet::bitcoin::bip32::DerivationPath = keystore.derivation_path.parse().unwrap();
+            assert_eq!(d.array().unwrap(), Some(2 * path.len() as u64));
+            for child in path.into_iter() {
+                assert_eq!((d.u32().unwrap(), d.bool().unwrap()), (u32::from(*child) & 0x7fff_ffff, child.is_hardened()));
+            }
+            assert_eq!((d.u32().unwrap(), d.u32().unwrap()), (2, u32::from_str_radix(&keystore.fingerprint, 16).unwrap()));
+            assert_eq!((d.u32().unwrap(), d.u8().unwrap()), (3, xpub.depth));
+            // Children /0/*; readers widen it to the change branch.
+            assert_eq!((d.u32().unwrap(), d.tag().unwrap().as_u64(), d.map().unwrap(), d.u32().unwrap(), d.array().unwrap()), (7, 304, Some(1), 1, Some(4)));
+            assert_eq!((d.u32().unwrap(), d.bool().unwrap(), d.array().unwrap(), d.bool().unwrap()), (0, false, Some(0), false));
+            assert_eq!((d.u32().unwrap(), d.u32().unwrap()), (8, u32::from_be_bytes(xpub.parent_fingerprint.to_bytes())));
+        }
+        assert_eq!(d.position(), cbor.len(), "{script:?}: no trailing data");
+    }
+    assert!(service.descriptor_to_ur_parts("missing".into()).is_err());
+
+    // Mainnet keys leave out use_info, which readers default to mainnet.
+    let dir = tempfile::tempdir().unwrap();
+    let bitcoin = WalletService::open(dir.path().to_str().unwrap().into(), Network::Bitcoin, None).unwrap();
+    let key = bitcoin.import_keystore(format!("[73c5da0a/84h/0h/0h]{ZPUB}").into_bytes(), ScriptType::P2wpkh).unwrap();
+    let account = bitcoin.create_wallet(single(ScriptType::P2wpkh, key)).unwrap();
+    let cbor = ur_payload(&bitcoin.descriptor_to_ur_parts(account.id).unwrap());
+    let mut d = minicbor::Decoder::new(&cbor);
+    assert_eq!((d.tag().unwrap().as_u64(), d.tag().unwrap().as_u64(), d.map().unwrap()), (404, 303, Some(5)));
+    assert_eq!((d.u32().unwrap(), d.skip().is_ok(), d.u32().unwrap(), d.skip().is_ok(), d.u32().unwrap()), (3, true, 4, true, 6));
+}
+
+/// Joins animated UR frames back into their CBOR payload.
+fn ur_payload<S: AsRef<str>>(parts: &[S]) -> Vec<u8> {
+    if parts.len() == 1 {
+        return ur::decode(&parts[0].as_ref().to_lowercase()).unwrap().1;
+    }
+    let mut decoder = ur::Decoder::default();
+    for part in parts {
+        if decoder.complete() {
+            break;
+        }
+        decoder.receive(&part.as_ref().to_lowercase()).unwrap();
+    }
+    decoder.message().unwrap().unwrap()
 }

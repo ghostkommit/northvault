@@ -473,6 +473,20 @@ impl WalletService {
     pub fn psbt_to_ur_parts(&self, psbt: String) -> Result<Vec<String>, WalletError> {
         interop::ur::psbt_to_parts(&psbt_io::from_base64(&psbt)?)
     }
+
+    /// The account's descriptor as animated `crypto-output` QR frames, for
+    /// signers that keep no wallet setup (SeedSigner) to recognize change.
+    pub fn descriptor_to_ur_parts(&self, account_id: String) -> Result<Vec<String>, WalletError> {
+        let l = self.live()?;
+        let config = l.record(&account_id)?.config();
+        interop::ur::descriptor_to_parts(&config, l.network)
+    }
+
+    /// The key for `script_type` from a scanned account QR (`crypto-account`
+    /// or `[fingerprint/path]xpub`). None until every frame is in.
+    pub fn import_keystore_qr(&self, decoder: Arc<UrDecoder>, script_type: ScriptType) -> Result<Option<Keystore>, WalletError> {
+        decoder.keystore(script_type, self.network_or_bitcoin())
+    }
 }
 
 // SECURITY-SENSITIVE — requires human review before merge: sync, broadcast

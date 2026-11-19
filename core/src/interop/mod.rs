@@ -64,7 +64,11 @@ pub fn import_keystore(contents: &[u8], script: ScriptType, network: Network) ->
         xpub: parse_xpub(key, network)?.to_string(),
         device: None,
     };
-    // Same depth check as wallet creation, so mistakes show up right away.
+    checked(keystore, script, network)
+}
+
+/// Same depth check as wallet creation, so mistakes show up right away.
+pub(crate) fn checked(keystore: Keystore, script: ScriptType, network: Network) -> Result<Keystore, WalletError> {
     let probe = WalletConfig {
         name: "probe".into(),
         script_type: if script.is_multisig() { script } else { ScriptType::P2wpkh },

@@ -129,7 +129,11 @@ struct SignTransactionSheet: View {
                 Button("Load Signed PSBT…") { loadPsbt() }.buttonStyle(.secondary)
                 Button("Scan QR…") {
                     state.presentPanel("Scan signed transaction") {
-                        QRScannerSheet(title: "Show the signed transaction QR to your camera") { add(signedPsbt: $0) }
+                        QRScannerSheet(title: "Show the signed transaction QR to your camera") { decoder in
+                            guard let psbt = try decoder.result() else { return false }
+                            add(signedPsbt: psbt)
+                            return true
+                        }
                     }
                 }.buttonStyle(.secondary)
             }

@@ -2,12 +2,12 @@ import AVFoundation
 import SwiftUI
 import Vision
 
-/// Reads (animated) PSBT QR codes with the Mac's camera. Frames go to the
-/// Rust UR decoder until the PSBT is complete.
+/// Reads (animated) PSBT or account-key QR codes with the Mac's camera.
+/// Frames go to the Rust UR decoder until `onFrame` reports the scan complete.
 struct QRScannerSheet: View {
     @Environment(\.dismissPanel) private var dismiss
     let title: String
-    let onResult: (String) -> Void
+    let onFrame: (UrDecoder) throws -> Bool
 
     @State private var decoder = UrDecoder()
     @State private var progress = 0.0
@@ -33,8 +33,7 @@ struct QRScannerSheet: View {
     private func handle(_ code: String) {
         do {
             progress = try decoder.receive(part: code)
-            if let psbt = try decoder.result() {
-                onResult(psbt)
+            if try onFrame(decoder) {
                 dismiss()
             }
         } catch {

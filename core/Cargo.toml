@@ -34,6 +34,8 @@ base64 = "0.22"
 # trezor-client TRACE logs include outbound PIN protobufs. Compile them out.
 tracing = { version = "0.1", features = ["max_level_info", "release_max_level_info"] }
 ur = "0.5"
+# Already in the tree through `ur`; used directly for crypto-account and crypto-output.
+minicbor = { version = "2", features = ["alloc"] }
 async-hwi = { version = "0.0.35", default-features = false, features = ["coldcard", "hidapi", "jade", "rustls"], optional = true }
 trezor-client = { version = "0.1.6", default-features = false, features = ["bitcoin"], optional = true }
 # Must match trezor-client's pinned protobuf version.

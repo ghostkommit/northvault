@@ -281,6 +281,7 @@ private struct KeystoreSlot: View {
                         Text("Connect a device or import a key").font(.caption).foregroundStyle(Theme.textMuted)
                     }
                     Button("File…") { fromFile() }.buttonStyle(.secondary)
+                    Button("QR…") { fromQR() }.buttonStyle(.secondary).help("Key QR from SeedSigner, Keystone, Passport or Jade")
                     Button("xpub…") {
                         path = state.wallet.defaultDerivationPath(scriptType: scriptType)
                         manual.toggle()
@@ -339,6 +340,17 @@ private struct KeystoreSlot: View {
         state.openFile(title: "Import key") { data, _ in
             keystore = try state.wallet.importKeystore(contents: data, scriptType: scriptType)
             error = nil
+        }
+    }
+
+    private func fromQR() {
+        state.presentPanel("Scan key") {
+            QRScannerSheet(title: "Show the key QR to your camera") { decoder in
+                guard let key = try state.wallet.importKeystoreQr(decoder: decoder, scriptType: scriptType) else { return false }
+                keystore = key
+                error = nil
+                return true
+            }
         }
     }
 

@@ -96,7 +96,11 @@ demo data.
 ¹ Not for Taproot over USB. ² After registering the wallet on the device.
 
 Any signer that reads and writes PSBT files or `crypto-psbt` animated QR codes
-(Keystone, Passport, SeedSigner and others) can be used air-gapped.
+(Keystone, Passport, SeedSigner and others) can be used air-gapped. To add such a
+signer's key, choose **QR…** and scan its account key QR (`crypto-account`, or a
+static `[fingerprint/path]xpub` code). Signers that keep no wallet setup, such as
+SeedSigner, need the wallet before signing a multisig transaction: choose
+**Account › Show Descriptor QR** and scan it with the device (`crypto-output`).
 
 ## Compatible formats
 
@@ -108,6 +112,8 @@ Any signer that reads and writes PSBT files or `crypto-psbt` animated QR codes
 | Specter DIY wallet file (`addwallet`) | ✓ | ✓ |
 | Coldcard, Cobo Vault or Keystone keystore JSON | ✓ | – |
 | Jade / Keystone single-sig key descriptor | ✓ | – |
+| Account key QR (`crypto-account`, SeedSigner, Keystone, Passport, Jade) | ✓ | – |
+| Wallet descriptor QR (`crypto-output`) | – | ✓ |
 | Key expression `[fingerprint/path]xpub` | ✓ | – |
 | Labels (BIP329) | ✓ | ✓ |
 | PSBT file, binary or base64 | ✓ | ✓ |

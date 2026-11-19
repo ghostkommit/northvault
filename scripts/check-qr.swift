@@ -64,6 +64,22 @@ struct QRChecks {
             let plainResult = try plainDecoder.result()
             precondition(plainResult == original, "Plain base64 QR must preserve case")
         }
+        // SeedSigner's published crypto-account vector (public test mnemonic) through render and camera decode.
+        let accountFrames = [
+            "UR:CRYPTO-ACCOUNT/1-4/LPADAACSKPCYMOMNLGRYHDCKOEADCYSSMECPONAOLYTAADMETAADDLOXAXHDCLAOKSRLNLKPUEGYATHPMNSNIYMUECBY",
+            "UR:CRYPTO-ACCOUNT/2-4/LPAOAACSKPCYMOMNLGRYHDCKKKGHZMLUZORPVDGUOTECSTTKTOLPCWPTNTLKZTTIZTBEAAHDCXVDTPMYRSTDMOPSCXFZ",
+            "UR:CRYPTO-ACCOUNT/3-4/LPAXAACSKPCYMOMNLGRYHDCKSPZSBZSPGERLGDATUYNLPYBTGYIYYKBTWTAOSWKSVTSGCHBYDKYAVDAMTAADMONDGDFD",
+            "UR:CRYPTO-ACCOUNT/4-4/LPAAAACSKPCYMOMNLGRYHDCKDYOTADLOCSDYYKADYKAEYKAOYKAOCYSSMECPONAXAAAYCYIOREKKJKAEAEAEWZWDMYON"
+        ]
+        let keyDecoder = UrDecoder()
+        for frame in accountFrames {
+            let decoded = try decode(try QRCodeRenderer.render(frame, logoURL: logo))
+            precondition(decoded == frame)
+            _ = try keyDecoder.receive(part: decoded)
+            checked += 1
+        }
+        let key = try wallet.importKeystoreQr(decoder: keyDecoder, scriptType: .p2wsh)
+        precondition(key?.fingerprint == "c49122a5" && key?.derivationPath == "m/48'/1'/0'/2'", "Scanned key QR must import")
         try fails(.empty) { _ = try QRCodeRenderer.render("", logoURL: logo) }
         try fails(.tooLarge) { _ = try QRCodeRenderer.render(String(repeating: "x", count: 1001), logoURL: logo) }
         try fails(.tooLarge) { _ = try QRCodeRenderer.render("small", dimension: 10, logoURL: logo) }
@@ -73,7 +89,7 @@ struct QRChecks {
         try fails(.empty) { try QRCodeRenderer.validate([]) }
         try fails(.empty) { try QRCodeRenderer.validate(["valid", ""]) }
         try fails(.tooLarge) { try QRCodeRenderer.validate(Array(repeating: "test", count: 129)) }
-        print("QR integration passed: \(checked) branded images decoded exactly; BIP21, UTF-8, single/multipart PSBT round trips, and failure paths")
+        print("QR integration passed: \(checked) branded images decoded exactly; BIP21, UTF-8, single/multipart PSBT round trips, an account key scan, and failure paths")
     }
 
     static func decode(_ image: CGImage) throws -> String {

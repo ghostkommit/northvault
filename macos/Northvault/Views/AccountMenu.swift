@@ -15,6 +15,7 @@ struct AccountMenu: View {
                     Button(format.title) { state.showAccountExport(account, format: format) }
                 }
             }
+            Button("Show Descriptor QR") { state.showDescriptorQR(account) }
             Button("Import Labels (BIP329)…") { state.showImportLabels(account) }
 
             if account.isMultisig {
@@ -61,6 +62,14 @@ extension AppState {
             presentAccountPanel("Export \(format.title)") {
                 FileBrowserPanel(suggestedName: "\(base) \(format.fileName)", data: data, onSelect: { _, _ in })
             }
+        }
+    }
+
+    /// Animated `crypto-output` QR, so a signer that stores no wallet setup
+    /// (SeedSigner) can recognize change when it signs.
+    func showDescriptorQR(_ account: Account) {
+        if let parts = attempt({ try wallet.descriptorToUrParts(accountId: account.id) }) {
+            QRCodePresentation.show(title: "Scan with your signing device", parts: parts)
         }
     }
 

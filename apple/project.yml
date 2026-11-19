@@ -1,0 +1,61 @@
+name: NorthvaultStorage
+options:
+  deploymentTarget:
+    macOS: '14.0'
+    iOS: '17.0'
+packages:
+  NorthvaultStorage:
+    path: ../shared
+configFiles:
+  Debug: Signing.xcconfig
+  Release: Signing.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: '5.9'
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_FILE: StorageInfo.plist
+    INFOPLIST_KEY_WalletUbiquityContainer: $(NORTHVAULT_ICLOUD_CONTAINER)
+    INFOPLIST_KEY_WalletKeychainAccessGroup: $(NORTHVAULT_KEYCHAIN_GROUP)
+    INFOPLIST_KEY_NSFaceIDUsageDescription: Authenticate before displaying unlocked wallet descriptors.
+    LIBRARY_SEARCH_PATHS: $(inherited) $(PROJECT_DIR)/../descriptor-core/target/apple/$(PLATFORM_NAME)
+targets:
+  NorthvaultStorageMac:
+    type: application
+    platform: macOS
+    sources: [../ios/NorthvaultStorageApp.swift]
+    dependencies:
+      - framework: ../descriptor-core/target/apple/NorthvaultDescriptor.xcframework
+        embed: false
+      - package: NorthvaultStorage
+        product: WalletUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(NORTHVAULT_BUNDLE_PREFIX).storage.mac
+        CODE_SIGN_ENTITLEMENTS: Storage.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+  NorthvaultStorageIOS:
+    type: application
+    platform: iOS
+    sources: [../ios/NorthvaultStorageApp.swift]
+    dependencies:
+      - framework: ../descriptor-core/target/apple/NorthvaultDescriptor.xcframework
+        embed: false
+      - package: NorthvaultStorage
+        product: WalletUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(NORTHVAULT_BUNDLE_PREFIX).storage.ios
+        CODE_SIGN_ENTITLEMENTS: Storage.entitlements
+        TARGETED_DEVICE_FAMILY: '1,2'
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+schemes:
+  NorthvaultStorageMac:
+    build:
+      targets:
+        NorthvaultStorageMac: all
+  NorthvaultStorageIOS:
+    build:
+      targets:
+        NorthvaultStorageIOS: all

@@ -1,0 +1,5 @@
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+NORTHVAULT_BUNDLE_PREFIX = com.yourcompany.northvault
+NORTHVAULT_ICLOUD_CONTAINER = iCloud.com.yourcompany.northvault
+// Both apps must use the same AppIdentifierPrefix and this common access group.
+NORTHVAULT_KEYCHAIN_GROUP = $(AppIdentifierPrefix)com.yourcompany.northvault.wallet-storage

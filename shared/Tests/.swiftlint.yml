@@ -1,0 +1,3 @@
+# The in-memory Keychain mirrors SecItem's untyped CFDictionary API.
+disabled_rules:
+  - force_cast

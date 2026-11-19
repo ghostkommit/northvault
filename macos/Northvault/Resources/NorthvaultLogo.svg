@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Northvault shield logo</title>
+  <desc id="desc">Minimal shield with a balanced cream letter N and a brown north arrow. Transparent background.</desc>
+  <defs>
+    <linearGradient id="border" x1="0.12" y1="0" x2="0.9" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#FFF8EC"/>
+      <stop offset="0.42" stop-color="#E4D8C7"/>
+      <stop offset="1" stop-color="#B9AA94"/>
+    </linearGradient>
+    <radialGradient id="field" cx="48%" cy="43%" r="76%">
+      <stop offset="0" stop-color="#28313B"/>
+      <stop offset="0.62" stop-color="#1C242C"/>
+      <stop offset="1" stop-color="#111820"/>
+    </radialGradient>
+    <linearGradient id="letter" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#FFFBF3"/>
+      <stop offset="0.65" stop-color="#EEE7DC"/>
+      <stop offset="1" stop-color="#D5CBBC"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer pointed shield -->
+  <path d="M512 32 C616 111 759 184 904 221 C925 374 917 529 867 669 C803 832 672 937 512 1011 C352 937 221 832 157 669 C107 529 99 374 120 221 C265 184 408 111 512 32 Z" fill="url(#border)"/>
+  <!-- Shield field: the surrounding canvas remains transparent -->
+  <path d="M512 91 C618 164 750 225 866 257 C882 378 873 515 831 648 C778 784 659 894 512 961 C365 894 246 784 193 648 C151 515 142 378 158 257 C274 225 406 164 512 91 Z" fill="url(#field)"/>
+  <!-- North arrow, centered on the N -->
+  <path d="M512 147 L392 352 L512 285 Z" fill="#4A3820"/>
+  <path d="M512 147 L632 352 L512 285 Z" fill="#2B2210"/>
+  <!-- Geometric N. Single shape, balanced within the shield. -->
+  <path d="M307 378 L390 378 L607 586 L607 449 L717 378 L717 774 L637 774 L417 561 L417 716 L307 787 Z" fill="url(#letter)"/>
+</svg>

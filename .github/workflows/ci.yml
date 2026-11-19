@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint and Rust tests
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+            descriptor-core/target
+          key: lint-${{ runner.os }}-${{ hashFiles('core/Cargo.lock', 'descriptor-core/Cargo.lock', '*/rust-toolchain.toml') }}
+      - run: brew install shellcheck actionlint swiftlint
+      - run: make lint
+      - run: make test
+      - name: Air-gapped build without USB support
+        run: cd core && cargo check --locked --no-default-features
+
+  regtest:
+    name: Regtest integration and Rust coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Let the unprivileged test container write its reports
+        run: mkdir -p build/coverage-rust && chmod 777 build/coverage-rust
+      - name: Unit, service and live Regtest suites
+        run: make docker-test
+      - name: Coverage gate (80% measured lines, 100% of critical files)
+        run: make coverage-rust-check
+      - name: Make the container-owned reports readable
+        if: always()
+        run: sudo chmod -R a+rX build/coverage-rust
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: rust-coverage
+          path: build/coverage-rust
+          if-no-files-found: ignore
+
+  macos-app:
+    name: macOS app and Swift suites
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            core/target
+            descriptor-core/target
+          key: app-${{ runner.os }}-${{ hashFiles('core/Cargo.lock', 'descriptor-core/Cargo.lock', '*/rust-toolchain.toml') }}
+      - run: brew install tesseract
+      - run: make build
+      # OCR of rendered screens (the wallet UI suite, one storage workflow) and the
+      # Swift coverage gate that needs them depend on Retina text rendering; they
+      # run locally (make coverage-swift-check).
+      - name: Storage, panel and QR suites
+        env:
+          NORTHVAULT_SKIP_RENDERED_UI: "1"
+        shell: bash # explicit, so pipefail keeps a failed suite from hiding behind tee
+        run: |
+          { make storage-test && bash scripts/test-panels.sh && bash scripts/test-qr.sh; } 2>&1 | tee swift-suites.log || {
+            # Publish the tail of a failed run as an annotation for quick diagnosis.
+            echo "::error title=Swift suites::$(grep -v '^ld: warning' swift-suites.log | tail -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+            exit 1
+          }
+      - run: make dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Northvault-macos-arm64
+          path: dist/
+          if-no-files-found: error

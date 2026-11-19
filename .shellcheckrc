@@ -1,0 +1,3 @@
+# Scripts source scripts/lib.sh relative to their own location.
+source-path=SCRIPTDIR
+external-sources=true

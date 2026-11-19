@@ -1,0 +1,104 @@
+name: northvault-regtest
+
+x-service: &service
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    target: services
+  image: northvault-regtest-services:local
+  init: true
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: ["/tmp:mode=1777"]
+
+services:
+  bitcoin:
+    <<: *service
+    networks: [regtest]
+    volumes:
+      - bitcoin-data:/data/bitcoin
+    healthcheck:
+      test: [CMD, python3, /opt/northvault/service.py, rpc-health]
+      interval: 2s
+      timeout: 10s
+      retries: 60
+      start_period: 10s
+    stop_grace_period: 30s
+
+  bootstrap:
+    <<: *service
+    network_mode: service:bitcoin
+    command: [python3, /opt/northvault/service.py, bootstrap]
+    volumes:
+      - bitcoin-data:/data/bitcoin:ro
+    depends_on:
+      bitcoin:
+        condition: service_healthy
+
+  electrs:
+    <<: *service
+    network_mode: service:bitcoin
+    command:
+      - electrs
+      - --network=regtest
+      - --daemon-dir=/data/bitcoin
+      - --db-dir=/data/electrs
+      - --daemon-rpc-addr=127.0.0.1:18443
+      - --daemon-p2p-addr=127.0.0.1:18444
+      - --electrum-rpc-addr=127.0.0.1:50001
+      - --monitoring-addr=127.0.0.1:4224
+    volumes:
+      - bitcoin-data:/data/bitcoin:ro
+      - electrs-data:/data/electrs
+    depends_on:
+      bitcoin:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python3, /opt/northvault/service.py, electrum-health]
+      interval: 2s
+      timeout: 10s
+      retries: 90
+      start_period: 10s
+    stop_grace_period: 30s
+
+  tests: &test-runner
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: tests
+    profiles: [test]
+    init: true
+    network_mode: service:bitcoin
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    volumes:
+      - bitcoin-data:/data/bitcoin:ro
+    depends_on:
+      bitcoin:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+      electrs:
+        condition: service_healthy
+
+  coverage:
+    <<: *test-runner
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: coverage
+    profiles: [coverage]
+    volumes:
+      - bitcoin-data:/data/bitcoin:ro
+      - ./build/coverage-rust:/reports
+
+networks:
+  regtest:
+    internal: true
+
+volumes:
+  bitcoin-data:
+  electrs-data:

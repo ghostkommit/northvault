@@ -1,0 +1,5 @@
+// Copy Signing.local.xcconfig.example to Signing.local.xcconfig and fill in your team IDs.
+NORTHVAULT_BUNDLE_PREFIX = org.example.northvault
+NORTHVAULT_ICLOUD_CONTAINER = iCloud.$(NORTHVAULT_BUNDLE_PREFIX)
+NORTHVAULT_KEYCHAIN_GROUP = $(AppIdentifierPrefix)$(NORTHVAULT_BUNDLE_PREFIX).wallet-storage
+#include? "Signing.local.xcconfig"

@@ -1,0 +1,60 @@
+# Generate the Xcode project with: xcodegen generate   (brew install xcodegen)
+name: Northvault
+options:
+  bundleIdPrefix: com.example            # TODO: your bundle id prefix
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  EFQRCode:
+    path: ../vendor/EFQRCode
+  NorthvaultStorage:
+    path: ../shared
+configFiles:
+  Debug: ../apple/Signing.xcconfig
+  Release: ../apple/Signing.xcconfig
+targets:
+  Northvault:
+    type: application
+    platform: macOS
+    sources:
+      - path: Northvault
+        excludes:
+          - Northvault.entitlements
+          - Resources
+      - path: Northvault/Resources
+        buildPhase: resources
+      - path: Generated                   # uniffi Swift bindings (make core)
+    dependencies:
+      - package: EFQRCode
+      - package: NorthvaultStorage
+        product: WalletUI
+      - framework: ../core/target/NorthvaultCore.xcframework
+        embed: false                      # static library, linked in
+      # System libraries the Rust core needs (cargo --print native-static-libs):
+      # hidapi/serialport/libusb use IOKit + CoreFoundation, the TLS stack uses Security.
+      - sdk: IOKit.framework
+      - sdk: CoreFoundation.framework
+      - sdk: Security.framework
+      - sdk: SystemConfiguration.framework
+      - sdk: libiconv.tbd
+    settings:
+      base:
+        LIBRARY_SEARCH_PATHS: $(inherited) $(PROJECT_DIR)/../descriptor-core/target/apple/macosx
+        INFOPLIST_KEY_WalletUbiquityContainer: $(NORTHVAULT_ICLOUD_CONTAINER)
+        INFOPLIST_KEY_WalletKeychainAccessGroup: $(NORTHVAULT_KEYCHAIN_GROUP)
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Authenticate before displaying unlocked wallet descriptors.
+        PRODUCT_NAME: Northvault
+        INFOPLIST_KEY_CFBundleIconFile: Northvault.icns
+        PRODUCT_BUNDLE_IDENTIFIER: $(NORTHVAULT_BUNDLE_PREFIX).mac
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: ../apple/StorageInfo.plist
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        INFOPLIST_KEY_NSCameraUsageDescription: "Northvault uses the camera to scan signed transactions shown as QR codes by your hardware wallet."
+        ENABLE_HARDENED_RUNTIME: YES
+        # Not sandboxed (like Sparrow): Jade needs direct serial port access.
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_ENTITLEMENTS: ../apple/StorageMac.entitlements
+        DEAD_CODE_STRIPPING: YES

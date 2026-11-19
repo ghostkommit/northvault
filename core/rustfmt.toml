@@ -1,0 +1,3 @@
+# Wide lines match the existing code; keeps formatting churn low.
+max_width = 160
+use_small_heuristics = "Max"

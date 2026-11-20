@@ -91,3 +91,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libudev-dev pkg
 USER tester
 RUN cd /workspace/core && CARGO_NET_OFFLINE=false cargo test --locked --features emulator --test emulator_hardware --no-run
 CMD ["sh", "-c", "cd /workspace/core && cargo test --locked --offline --features emulator --test emulator_hardware -- --ignored --test-threads=1"]
+
+# Ledger's Bitcoin Test app, built from its 2.5.0 release tag for the Nano S Plus
+# firmware emulator. Test-only: the app never leaves these images.
+FROM ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-lite@sha256:45ec491f28489aa0337eea8d50e9962a700ed41054081ee1b639bc1b128e6a32 AS ledger-app
+RUN git clone --quiet https://github.com/LedgerHQ/app-bitcoin-new.git /app \
+    && cd /app && git checkout --quiet 0fec192f13cac736107d15614ccbbe3f2b8446c1 \
+    && make DEBUG=0 COIN=bitcoin_testnet BOLOS_SDK="$NANOSP_SDK" -j4
+
+FROM ghcr.io/ledgerhq/speculos@sha256:56c7ec84c903147dac28e68706d3241218a3d9beb9562dd4a8c02947b2a24f47 AS ledger-emulator
+COPY --from=ledger-app /app/bin/app.elf /apps/btc-test.elf

@@ -16,9 +16,9 @@ path = "src/bin/uniffi-bindgen.rs"
 
 [features]
 default = ["hardware"]
-# USB hardware wallets (Coldcard, Jade, Trezor). Off = air-gapped only.
-hardware = ["dep:async-hwi", "dep:trezor-client", "dep:protobuf", "dep:rusb"]
-# Test builds only: lets the Trezor transport see a local firmware emulator. Never in a release.
+# USB hardware wallets (Coldcard, Jade, Ledger, Trezor). Off = air-gapped only.
+hardware = ["dep:async-hwi", "dep:trezor-client", "dep:protobuf", "dep:rusb", "dep:ledger_bitcoin_client", "dep:ledger-transport-hidapi", "dep:ledger-apdu"]
+# Test builds only: lets the Trezor and Ledger transports see local firmware emulators. Never in a release.
 emulator = ["hardware"]
 
 [dependencies]
@@ -38,6 +38,12 @@ ur = "0.5"
 minicbor = { version = "2", features = ["alloc"] }
 async-hwi = { version = "0.0.35", default-features = false, features = ["coldcard", "hidapi", "jade", "rustls"], optional = true }
 trezor-client = { version = "0.1.6", default-features = false, features = ["bitcoin"], optional = true }
+# Ledger's Bitcoin app client, used synchronously on the hardware worker thread.
+ledger_bitcoin_client = { version = "0.6", default-features = false, features = ["paranoid_client"], optional = true }
+ledger-transport-hidapi = { version = "0.10", optional = true }
+ledger-apdu = { version = "0.10", optional = true }
+# The Ledger HID transport logs every APDU (keys, PSBTs) at INFO. Compile `log` output above WARN out.
+log = { version = "0.4", features = ["max_level_warn", "release_max_level_warn"] }
 # Must match trezor-client's pinned protobuf version.
 protobuf = { version = "=3.7.2", optional = true }
 # Static libusb for Trezor, so the app doesn't need Homebrew's libusb.

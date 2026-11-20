@@ -89,6 +89,7 @@ mod tests {
             keystores: config.keystores,
             descriptor: desc,
             created_at: 0,
+            ledger_registrations: Vec::new(),
         };
         for index in 0..5 {
             let script = multisig_script(&record, Chain::Change, index).unwrap();

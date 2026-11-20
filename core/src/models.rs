@@ -79,6 +79,7 @@ pub enum DeviceKind {
     Coldcard,
     Trezor,
     Jade,
+    Ledger,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

@@ -102,7 +102,7 @@ core/                              Rust
   src/chain/electrum.rs     ⚠      Sync, fee estimates, broadcast
   src/chain/price.rs               Price/FX source (sample only, see below)
   src/interop/              ⚠      Output descriptors, Coldcard files, BSMS, BIP329, PSBT files, BC-UR QR
-  src/hwi/                  ⚠      Coldcard, Jade, Trezor over USB
+  src/hwi/                  ⚠      Coldcard, Jade, Ledger, Trezor over USB
   src/store/                       wallets.json registry, per-wallet SQLite and labels
 macos/
   project.yml                      XcodeGen spec (frameworks, camera usage, entitlements)
@@ -212,22 +212,27 @@ multisig, `sortedmulti`, change on `/1/*`, gap limit 20, RBF on.
 
 ## Hardware wallets
 
-| | Coldcard | Jade | Trezor |
-|---|---|---|---|
-| Transport | USB (HID) via `coldcard` crate; SD-card PSBT | USB (serial) via `async-hwi`; animated QR | USB via `trezor-client` |
-| Read xpub | ✓ | ✓ | ✓ |
-| Show + verify address (single-sig) | ✓ (not taproot) | ✓ | ✓ |
-| Show + verify address (multisig) | ✓ | ✓ (after registration) | ✓ |
-| Register multisig | ✓ (uploads setup file) | ✓ | not needed (stateless) |
-| Sign single-sig | ✓ | ✓ | ✓ (incl. taproot) |
-| Sign multisig | ✓ | ✓ (after registration) | ✓ (multisig acks built in `hwi/trezor.rs`) |
-| Unlock | on device | on device + Blockstream PIN server | on device (newer models); PIN matrix in Northvault (Model One) |
+| | Coldcard | Jade | Ledger | Trezor |
+|---|---|---|---|---|
+| Transport | USB (HID) via `coldcard` crate; SD-card PSBT | USB (serial) via `async-hwi`; animated QR | USB (HID) via `ledger_bitcoin_client` (Bitcoin app 2.x) | USB via `trezor-client` |
+| Read xpub | ✓ | ✓ | ✓ (SegWit and Taproot paths) | ✓ |
+| Show + verify address (single-sig) | ✓ (not taproot) | ✓ | ✓ | ✓ |
+| Show + verify address (multisig) | ✓ | ✓ (after registration) | ✓ (after registration) | ✓ |
+| Register multisig | ✓ (uploads setup file) | ✓ | ✓ (BIP388 policy; the returned HMAC is stored with the wallet) | not needed (stateless) |
+| Sign single-sig | ✓ | ✓ | ✓ (incl. taproot; not legacy P2PKH) | ✓ (incl. taproot) |
+| Sign multisig | ✓ | ✓ (after registration) | ✓ (after registration; not legacy P2SH) | ✓ (multisig acks built in `hwi/trezor.rs`) |
+| Unlock | on device | on device + Blockstream PIN server | on device; open the Bitcoin (or Bitcoin Test) app | on device (newer models); PIN matrix in Northvault (Model One) |
 
 Device code compiles and the multisig key ordering is unit tested, but **none of it has been
 fully validated against real devices yet**. Trezor Model One supports PIN-matrix entry
 in Northvault, including a masked passphrase form when on-device entry is unavailable. Coldcard taproot
 address display over USB isn't available in the `coldcard` crate.
-Jade multisig uses descriptor registration, which needs recent Jade firmware. Build without
+Jade multisig uses descriptor registration, which needs recent Jade firmware.
+Ledger refuses legacy P2PKH and P2SH here: its Rust client errors when the app asks
+for an input field that is absent (see the `shortcut:` note in `hwi/ledger.rs`). A
+Ledger USB read can wait up to the transport's built-in limit (about 2.8 hours) for
+an answer, keeping the hardware worker busy until the prompt is answered or the
+device is unplugged. Build without
 USB support with `cargo build --no-default-features` (air-gapped only).
 
 Under Receive, each detected device has its own **Verify on …** button, even when

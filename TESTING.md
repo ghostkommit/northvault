@@ -9,7 +9,7 @@ models/crypto/storage/UI, macOS views and state, and the iOS storage client.
 Generated bindings and vendored dependencies are reported separately from
 first-party code; hardware and OS service acceptance remains explicit.
 
-## Hardware emulator suite (2026-11-19)
+## Hardware emulator suite (2026-11-19, Ledger added the same day)
 
 `make docker-test-hardware` runs `core/tests/emulator_hardware.rs`: the unmodified
 `WalletService` device calls (`list_devices`, `device_keystore`,
@@ -25,11 +25,28 @@ firmware emulator (2.13.1) on Regtest. The emulator is loaded with Trezor's publ
 | Wallet without the device's key | Address display and signing refused |
 | 2-of-3 legacy P2SH at `m/45'` | **Refused by the firmware ("Forbidden key path")** under its default strict safety checks. Pinned in the test as a known limitation. |
 
-The Cargo feature `emulator` is the only production switch: without it
-`hwi/trezor.rs` hides the emulator's UDP transport. `make lint` fails if the
-feature appears in an app or release build script.
+The same suite drives `hwi/ledger.rs` against Speculos (0.27.4) running Ledger's
+Bitcoin Test app 2.5.0 for the Nano S Plus. The Dockerfile builds the app from its
+release tag with Ledger's pinned builder image. The emulator gets the same public
+seed, and the test reads its screen and presses its buttons through the Speculos
+REST API.
 
-Not covered: Coldcard and Jade (no emulator wired yet), Trezor Model One PIN
+| Ledger: covered | Result |
+| --- | --- |
+| Single-sig P2SH-P2WPKH, P2WPKH, P2TR | Key read, receive and change address match, signed, accepted by Bitcoin Core |
+| 2-of-3 P2SH-P2WSH and P2WSH | Address display refused before registration; registered on the device; registration survives a restart; addresses match; signed; one signature alone is refused |
+| Signing rejected on the device | `WalletError::Device` ("declined"), no PSBT returned |
+| Stored registration HMAC tampered with | The device refuses the request |
+| Wallet without the device's key | Registration refused before the device is asked |
+| Legacy P2PKH and 2-of-3 P2SH | **Refused by Northvault** (`NotSupported`). `ledger_bitcoin_client` 0.6.2 and 0.7.0 error when the app looks up a PSBT field the input doesn't have, where Ledger's Python client answers "not found". The app looks up the witness UTXO even on legacy inputs. Pinned in the test. |
+
+The Cargo feature `emulator` is the only production switch: without it
+`hwi/trezor.rs` hides the emulator's UDP transport and `hwi/ledger.rs` never
+connects to the emulator's TCP port. `make lint` fails if the feature appears in
+an app or release build script.
+
+Not covered: Coldcard and Jade (no emulator wired yet), Ledger USB discovery and
+the macOS HID path, Trezor Model One PIN
 matrix and host passphrase entry, and everything an emulator cannot show: USB
 and the macOS HID worker thread, real screens and buttons. `hwi/` is not yet in
 the coverage report. An emulator pass is not physical-device acceptance.

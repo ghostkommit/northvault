@@ -132,6 +132,7 @@ extension DeviceKind {
         case .coldcard: "Coldcard"
         case .trezor: "Trezor"
         case .jade: "Jade"
+        case .ledger: "Ledger"
         }
     }
 }

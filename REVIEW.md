@@ -52,12 +52,18 @@ explicitly ignored pending the Bitcoin Core/electrs prerequisites. Checks includ
 - Fee rate refusal; 2-of-3 PSBT: one signature can't finalize, a mismatched PSBT is refused, two signatures finalize
 - Multisig key order matches the script, which Coldcard and Trezor depend on (`hwi::util::tests`)
 
-Not covered by automated tests: real device communication (Coldcard, Jade and Trezor
-were not available while this was written) and Electrum sync against a live server.
-The Trezor protocol code runs against Trezor's firmware emulator in
+Not covered by automated tests: real device communication (Coldcard, Jade, Ledger and
+Trezor were not available while this was written) and Electrum sync against a live server.
+The Trezor and Ledger protocol code runs against each vendor's firmware emulator in
 `make docker-test-hardware` (see TESTING.md). That needs the test-only Cargo
 feature `emulator`, which must never be enabled in an app or release build: it
-lets `hwi/trezor.rs` list a local UDP emulator as a device.
+lets `hwi/trezor.rs` list a local UDP emulator and `hwi/ledger.rs` a local TCP
+emulator (127.0.0.1:9999) as devices.
+
+Ledger multisig registrations are stored in `wallets.json` (`ledger_registrations`:
+fingerprint, policy name, HMAC). The HMAC is not a secret; the policy sent to the
+device is always rebuilt from the stored descriptor, so a tampered HMAC only makes
+the device refuse (covered by the emulator test). Older files load without the field.
 See "Verification" in DEVELOPMENT.md.
 
 The persistence failure tests in `core/tests/regtest_persistence.rs` exercise the

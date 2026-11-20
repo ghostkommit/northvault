@@ -246,6 +246,7 @@ mod tests {
             keystores: config.keystores.clone(),
             descriptor: desc,
             created_at: 0,
+            ledger_registrations: Vec::new(),
         };
         let store = Store::open(dir, Network::Bitcoin).unwrap();
         let mut acc = LiveAccount::open(&store, record, Network::Bitcoin).unwrap();

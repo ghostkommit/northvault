@@ -229,7 +229,7 @@ struct AddWalletSheet: View {
             state.selection = .account(account.id)
             dismiss()
             if account.isMultisig && state.devices.contains(where: { $0.kind != .trezor }) {
-                state.alertMessage = "Register the wallet on your Coldcard or Jade (Account menu → Register on Device) so it can verify addresses and change."
+                state.alertMessage = "Register the wallet on your Coldcard, Jade or Ledger (Account menu → Register on Device) so it can verify addresses and change."
             }
             Task { await state.sync() }
         } catch {

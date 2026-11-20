@@ -362,6 +362,7 @@ impl WalletService {
             keystores: config.keystores,
             descriptor: desc,
             created_at: wallet::live::now(),
+            ledger_registrations: Vec::new(),
         };
         let account = LiveAccount::open(&l.store, record, l.network)?;
         let summary = account.account();
@@ -555,11 +556,21 @@ impl WalletService {
         Ok(shown)
     }
 
-    /// Registers a multisig wallet on the device (Coldcard, Jade). Trezor needs no registration.
+    /// Registers a multisig wallet on the device (Coldcard, Jade, Ledger). Trezor needs no registration.
     pub async fn device_register_wallet(&self, device_id: String, account_id: String) -> Result<(), WalletError> {
         let l = self.live()?;
         let record = l.record(&account_id)?;
-        hwi::register(&device_id, &record, l.network).await
+        let Some(registration) = hwi::register(&device_id, &record, l.network).await? else { return Ok(()) };
+        // Ledger needs its registration back on every request; one per device.
+        let mut accounts = l.accounts();
+        let index = accounts.iter().position(|a| a.id() == account_id).ok_or(WalletError::UnknownAccount)?;
+        let mut records: Vec<_> = accounts.iter().map(|a| a.record.clone()).collect();
+        let registrations = &mut records[index].ledger_registrations;
+        registrations.retain(|r| r.fingerprint != registration.fingerprint);
+        registrations.push(registration);
+        l.store.save(&records)?;
+        accounts[index].record = records.swap_remove(index);
+        Ok(())
     }
 
     /// Asks the device to sign. Returns the device's PSBT (base64), which is

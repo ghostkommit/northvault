@@ -85,15 +85,16 @@ demo data.
 
 ## Hardware wallets
 
-| | Coldcard | Jade | Trezor |
-|---|:---:|:---:|:---:|
-| Connect | USB, SD card | USB, QR | USB |
-| Read account key | ✓ | ✓ | ✓ |
-| Verify address on device | ✓ ¹ | ✓ | ✓ |
-| Sign single-sig | ✓ | ✓ | ✓ |
-| Sign multisig | ✓ | ✓ ² | ✓ |
+| | Coldcard | Jade | Ledger | Trezor |
+|---|:---:|:---:|:---:|:---:|
+| Connect | USB, SD card | USB, QR | USB | USB |
+| Read account key | ✓ | ✓ | ✓ ³ | ✓ |
+| Verify address on device | ✓ ¹ | ✓ | ✓ ² | ✓ |
+| Sign single-sig | ✓ | ✓ | ✓ ³ | ✓ |
+| Sign multisig | ✓ | ✓ ² | ✓ ² ³ | ✓ |
 
-¹ Not for Taproot over USB. ² After registering the wallet on the device.
+¹ Not for Taproot over USB. ² Multisig after registering the wallet on the device.
+³ SegWit and Taproot wallets; not legacy P2PKH or P2SH. Open the Bitcoin app first.
 
 Any signer that reads and writes PSBT files or `crypto-psbt` animated QR codes
 (Keystone, Passport, SeedSigner and others) can be used air-gapped. To add such a

@@ -21,6 +21,20 @@ pub struct WalletRecord {
     /// Multipath descriptor with checksum.
     pub descriptor: String,
     pub created_at: i64,
+    /// Multisig registrations on Ledger devices. Older files have none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ledger_registrations: Vec<LedgerRegistration>,
+}
+
+/// What a Ledger returned when it registered this wallet's policy. The HMAC
+/// isn't secret: it lets the device skip re-approving the same policy, and a
+/// device rejects a policy or name it didn't register.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LedgerRegistration {
+    pub fingerprint: String,
+    /// The policy name shown on the device, part of what the HMAC covers.
+    pub name: String,
+    pub hmac: String,
 }
 
 impl WalletRecord {
